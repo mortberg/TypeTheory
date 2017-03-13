@@ -14,6 +14,7 @@ PACKAGES += Displayed_Cats
 PACKAGES += ALV2
 PACKAGES += OtherDefs
 PACKAGES += Categories
+PACKAGES += Cubical
 ############################################
 # other user options; see also build/Makefile-configuration-template
 BUILD_COQ ?= no 
