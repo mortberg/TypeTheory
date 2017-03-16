@@ -20,29 +20,47 @@ Require Import UniMath.CategoryTheory.ElementsOp.
 
 Local Open Scope cat.
 
+(* Section temp. *)
+
+(* Variable (C D : precategory). *)
+
+(* Lemma temp (F : functor C D) (a b : C) (f g : C⟦a,b⟧) (e : f = g) *)
+(*   (P : C⟦a,b⟧ → UU) (p : P f) : UU. *)
+(* Search transportf "mor". *)
+(* Check (# F (transportf P e p)). *)
+
+(* Check (# F ). *)
+
+(*   # F (transportf _ _ X) = *)
+(*   transportf P e (# F X). *)
+
+
+ 
+(*   transportf X Y (# (pr1 A) Z u) = *)
+(*   # (pr1 A) (transportf (λ XXX : Γ I, ∑ f : C ⟦ I, I ⟧, XXX = # Γ f ρ) Y Z) u *)
+
+
+(* transportf : ∏ (X : UU) (P : X → UU) (x x' : X), x = x' → P x → P x' *)
+
+
+
+
 Section cat_of_elems_theory.
 
 Context {C : precategory} (hsC : has_homsets C).
 
-Definition nat_trans_cat_of_elems
-  {F G : PreShv C} (α : nat_trans (pr1 F) (pr1 G)) : functor (∫ F) (∫ G).
-Proof.
-apply cat_of_elems_on_nat_trans.
-assumption.
-Defined.
+Definition nat_trans_cat_of_elems {Γ Δ : PreShv C} (α : Γ --> Δ) :
+  functor (∫ Γ) (∫ Δ) := cat_of_elems_on_nat_trans α.
 
-(* Lemma nat_trans_cat_of_elems_id *)
-(*   {F : PSh C} : nat_trans_cat_of_elems (nat_trans_id (pr1 F)) = functor_identity _. *)
-
-Definition subst_functor {F G : PreShv C} (α : nat_trans (pr1 F) (pr1 G)) :
-  functor (PreShv (∫ G)) (PreShv (∫ F)).
+Definition subst_functor {Γ Δ : PreShv C} (α : Γ --> Δ) :
+  functor (PreShv (∫ Δ)) (PreShv (∫ Γ)).
 Proof.
 use pre_composition_functor.
 - apply has_homsets_opp, has_homsets_cat_of_elems, hsC.
 - now apply functor_opp, nat_trans_cat_of_elems.
 Defined.
 
-Lemma is_left_adjoint_subst_functor {F G : PreShv C} (α : nat_trans (pr1 F) (pr1 G)) :
+Lemma is_left_adjoint_subst_functor {Γ Δ : PreShv C} (α : Γ --> Δ) :
   is_left_adjoint (subst_functor α).
 Proof.
 use (RightKanExtension_from_limits _ _ _ LimsHSET). (* apply is slow here... *)
@@ -63,14 +81,13 @@ Definition TypeIn (Γ : PreShv C) : UU := PreShv (∫ Γ).
 Local Notation "Γ ⊢" := (TypeIn Γ) (at level 3).
 
 (* Given Γ ⊢ A and a substitution σ : Δ → Γ we get Δ ⊢ Aσ *)
-Lemma subst_type {Γ Δ : PreShv C} (A : Γ ⊢) (σ : nat_trans (pr1 Δ) (pr1 Γ)) : Δ ⊢.
-Proof.
-apply (subst_functor hsC σ A).
-Defined.
+Definition subst_type {Γ Δ : PreShv C} (A : Γ ⊢) (σ : Δ --> Γ) : Δ ⊢ :=
+  subst_functor hsC σ A.
 
-(* A1 = A *)
-Lemma subst_type_id (Γ : PreShv C) (A : Γ ⊢) :
-  subst_type A (nat_trans_id (pr1 Γ)) = A.
+Local Notation "'1'" := (nat_trans_id _).
+Notation "A ⦃ s ⦄" := (subst_type A s) (at level 50, format "A ⦃ s ⦄").
+
+Lemma subst_type_id (Γ : PreShv C) (A : Γ ⊢) : A⦃1⦄ = A.
 Proof.
 apply (functor_eq _ _ has_homsets_HSET).
 use functor_data_eq.
@@ -79,11 +96,8 @@ use functor_data_eq.
   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|].
 Qed.
 
-(* TODO: swap? *)
-(* A(rho delta) = (Arho)delta *)
-Lemma subst_type_comp (Γ Delta Theta : PreShv C) (s1 : nat_trans (pr1 Theta) (pr1 Delta))
-  (s2 : nat_trans (pr1 Delta) (pr1 Γ)) (A : Γ ⊢) :
-  subst_type A (nat_trans_comp _ _ _ s1 s2) = subst_type (subst_type A s2) s1.
+Lemma subst_type_comp (Γ Δ Θ : PreShv C)
+  (σ1 : Θ --> Δ) (σ2 : Δ --> Γ) (A : Γ ⊢) : A⦃σ1 · σ2⦄ = A⦃σ2⦄⦃σ1⦄.
 Proof.
 apply (functor_eq _ _ has_homsets_HSET).
 use functor_data_eq.
@@ -91,6 +105,62 @@ use functor_data_eq.
 - intros [a1 a2] [b1 b2] f; cbn.
   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|].
 Qed.
+
+Definition ctx_ext {Γ : PreShv C} (A : Γ ⊢) : PreShv C.
+Proof.
+simpl in *.
+use mk_functor.
+- mkpair.
+  + simpl; intros I.
+    use total2_hSet.
+    * apply (Γ I).
+    * intros ρ.
+      apply (pr1 A (make_ob I ρ)).
+  + simpl; intros I J f [ρ u].
+    exists (# Γ f ρ).
+    apply (# (pr1 A) (make_mor (J,,_) (I,,_) f (idpath _)) u).
+- split.
+  + intros I.
+    apply funextfun; intros [ρ u].
+cbn.
+use total2_paths2_f.
+exact (eqtohomot (functor_id Γ I) ρ).
+Search transportf "functor".
+match goal with |-transportf ?XX ?YY (# _ ?ZZ _) = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
+Check (∫ Γ ⟦ I,, # Γ (identity I) ρ, I,, ρ ⟧).
+assert (HZ : transportf (fun XXX : pr1 (pr1 Γ I) => ∫ Γ ⟦ I,, XXX, I,, ρ ⟧) Y Z = identity (make_ob I ρ)).
+cbn.
+apply subtypeEquality.
+intros x.
+apply setproperty.
+simpl.
+cbn.
+unfold Y, Z.
+clear Y; clear Z; clear X.
+unfold make_mor.
+Search "transportf" "idpath".
+rewrite transportf_total2.
+simpl.
+match goal with |-transportf ?XX ?YY ?ZZ = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
+cbn in *.
+induction Y.
+cbn.
+apply idpath.
+assert (moo : transportf X Y (# (pr1 A) Z u) =
+              # (pr1 A) (transportf (λ XXX, ∫ Γ ⟦ I,, XXX, I,, ρ ⟧) Y Z) u).
+unfold X.
+
+Search (transportf (fun _ => _ _) _ _ = _ _).
+
+admit.
+etrans.
+apply moo.
+assert (# (pr1 A) (transportf (λ XXX , ∫ Γ ⟦ I,, XXX, I,, ρ ⟧) Y Z) = idfun _).
+cbn in *.
+admit.
+admit.
++ admit.
+Admitted.
 
 End types.
 
