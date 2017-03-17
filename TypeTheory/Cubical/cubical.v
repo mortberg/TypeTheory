@@ -3,6 +3,8 @@ Require Import UniMath.Foundations.PartD.
 Require Import UniMath.Foundations.Propositions.
 Require Import UniMath.Foundations.Sets.
 
+(* Require Import UniMath.MoreFoundations.Tactics. *)
+
 Require Import UniMath.CategoryTheory.total2_paths.
 Require Import UniMath.CategoryTheory.precategories.
 Require Import UniMath.CategoryTheory.functor_categories.
@@ -76,9 +78,7 @@ Section types.
 
 Context {C : precategory} (hsC : has_homsets C).
 
-Definition TypeIn (Γ : PreShv C) : UU := PreShv (∫ Γ).
-
-Local Notation "Γ ⊢" := (TypeIn Γ) (at level 3).
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 3).
 
 (* Given Γ ⊢ A and a substitution σ : Δ → Γ we get Δ ⊢ Aσ *)
 Definition subst_type {Γ Δ : PreShv C} (A : Γ ⊢) (σ : Δ --> Γ) : Δ ⊢ :=
@@ -106,6 +106,54 @@ use functor_data_eq.
   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|].
 Qed.
 
+Definition special_mor {Γ : PreShv C} {I J : C} (f : C^op⟦I,J⟧) (ρ : pr1 (pr1 Γ I)) :
+  ∫ Γ ⟦ make_ob J (# (pr1 Γ) f ρ), make_ob I ρ ⟧ := 
+  make_mor (J,, # (pr1 Γ) f ρ) (I,, ρ) f (idpath (# (pr1 Γ) f ρ)).
+
+Lemma temp {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
+  make_ob I (# (pr1 Γ) (identity I) ρ) = make_ob I ρ.
+Proof.
+use total2_paths_f.
+- apply (idpath _).
+- exact (eqtohomot (functor_id Γ I) ρ).
+Defined.
+
+(* now rewrite (functor_id Γ). *)
+
+
+Lemma special_mor_id {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
+  transportf (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (temp ρ) (special_mor (identity I) ρ) = identity (make_ob I ρ).
+Proof.
+apply cat_of_elems_mor_eq.
+simpl.
+rewrite transportf_total2.
+simpl.
+cbn in *.
+match goal with |-transportf ?XX (paths_rect _ _ _ _ _ ?YY) ?ZZ = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
+now induction Y.
+Defined.
+
+Lemma test1 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
+  px = transportb P e py -> transportf P e px = py.
+Proof.
+intros H.
+rewrite H.
+apply transportfbinv.
+Defined.
+
+Lemma test2 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
+  transportf P e px = py -> px = transportb P e py.
+Proof.
+intros H.
+now rewrite <- H, transportbfinv.
+Defined.
+
+Lemma special_mor_id' {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
+  special_mor (identity I) ρ = transportb (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (temp ρ) (identity (make_ob I ρ)).
+Proof.
+now rewrite <- special_mor_id, transportbfinv.
+Defined.
+
 Definition ctx_ext {Γ : PreShv C} (A : Γ ⊢) : PreShv C.
 Proof.
 simpl in *.
@@ -115,16 +163,87 @@ use mk_functor.
     use total2_hSet.
     * apply (Γ I).
     * intros ρ.
-      apply (pr1 A (make_ob I ρ)).
-  + simpl; intros I J f [ρ u].
-    exists (# Γ f ρ).
-    apply (# (pr1 A) (make_mor (J,,_) (I,,_) f (idpath _)) u).
+      apply (A (make_ob I ρ)).
+  + intros I J f ρu.
+    exists (# Γ f (pr1 ρu)).
+    apply (# A (special_mor f (pr1 ρu)) (pr2 ρu)).
 - split.
-  + intros I.
-    apply funextfun; intros [ρ u].
+  + simpl. intros I.
+    simpl.
+    apply funextfun; intros ρu.
+    unfold identity.
+    cbn.
+    use total2_paths_f.
+    simpl.
+    
+(* rewrite (functor_id Γ I). *)
+    exact (toforallpaths _ _ _ (functor_id Γ I) (pr1 ρu)).
+    simpl.
+    etrans.
+    Check transport_target_source.
+    Search transportf.
+    induction ρu as [ρ u].
+    
+    
+    cbn in *.
+    apply (test1 _ (λ x, pr1 (pr1 A (make_ob I x)))).
+    rewrite special_mor_id'.
+    cbn.
+    induction ρu as [ρ u].
+    cbn.
+    induction  (toforallpaths (λ _, pr1 (pr1 Γ I)) (# Γ (identity I)) (λ x, x) (functor_id Γ I) ρ).
+    cbn.
+    
+Check (@transport_map _ _ _ _ (special_mor (identity I) (pr1 ρu))).
+Check (@transport_map _ _ _ _ _ _ (special_mor_id' _)).
+Check transportf.
+etrans.
+Check (@transport_map _ _  (λ x, pr1 (pr1 A (make_ob I x))) _ _ _(toforallpaths (λ _, pr1 (pr1 Γ I)) (# Γ (identity I)) (λ x, x) (functor_id Γ I) (pr1 ρu))).
+rewrite special_mor_id'.
+Search transportf "map".
+unfold toforallpaths.
 cbn.
-use total2_paths2_f.
-exact (eqtohomot (functor_id Γ I) ρ).
+simpl.
+match goal with |-transportf ?XX (paths_rect _ _ _ _ _ ?YY) ?ZZ = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
+cbn in *.
+induction Y.
+Search transportf toforallpaths.
+induction Y.
+
+induction ((eqtohomot (functor_id Γ I) (pr1 ρu))).
+assert (H : transportf (λ x, pr1 (pr1 A (make_ob I x))) (eqtohomot (functor_id Γ I) ρ) (# A (special_mor (identity I) ρ) u) =
+            # A (transportf (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (temp ρ) (special_mor (identity I) ρ)) u).
+    *
+
+      Search transportf.
+
+
+set (P := @paths).
+cbn.
+
+etrans.
+apply H.
+generalize u.
+eapply eqtohomot.
+etrans.
+eapply maponpaths.
+apply special_mor_id.
+etrans.
+apply (functor_id A).
+apply idpath.
+
+
+
+
+
+
+
+
+
+
+1
+
+rewrite H.
 Search transportf "functor".
 match goal with |-transportf ?XX ?YY (# _ ?ZZ _) = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
 Check (∫ Γ ⟦ I,, # Γ (identity I) ρ, I,, ρ ⟧).
