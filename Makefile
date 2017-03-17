@@ -20,7 +20,7 @@ PACKAGES += Cubical
 # other user options; see also build/Makefile-configuration-template
 BUILD_COQ ?= no 
 BUILD_COQIDE ?= no
-COQBIN ?=
+COQBIN ?= ../UniMath/sub/coq/bin/
 ############################################
 .PHONY: all everything install lc lcp wc describe clean distclean build-coq doc build-coqide
 COQIDE_OPTION ?= no
@@ -120,6 +120,8 @@ describe:; git describe --dirty --long --always --abbrev=40 --all
 	echo '# It is made by automatically (by code in Makefile)' ;\
 	echo ;\
 	echo '-Q TypeTheory TypeTheory' ;\
+	echo ;\
+	echo '-Q ../UniMath/UniMath UniMath' ;\
 	echo ;\
 	for i in $(PACKAGES) ;\
 	do <TypeTheory/$$i/.package/files $(FILES_FILTER) |sed "s=^=TypeTheory/$$i/="  ;\
