@@ -22,6 +22,15 @@ Require Import UniMath.CategoryTheory.ElementsOp.
 
 Local Open Scope cat.
 
+
+Lemma lol (C : precategory) (F : PreShv C) (x y : C^op) (e : y = x) (f : C^op⟦x,y⟧) (u : pr1 (pr1 F x)) :
+  transportf (λ x, pr1 (pr1 F x)) e (# (pr1 F) f u) =
+  # (pr1 F) (transportf (precategory_morphisms x) e f) u.
+Proof.
+induction e.
+apply idpath.
+Defined.
+
 (* Section temp. *)
 
 (* Variable (C D : precategory). *)
@@ -110,16 +119,27 @@ Definition special_mor {Γ : PreShv C} {I J : C} (f : C^op⟦I,J⟧) (ρ : pr1 (
   ∫ Γ ⟦ make_ob J (# (pr1 Γ) f ρ), make_ob I ρ ⟧ := 
   make_mor (J,, # (pr1 Γ) f ρ) (I,, ρ) f (idpath (# (pr1 Γ) f ρ)).
 
+Lemma make_ob_eq {Γ : PreShv C} (I : C) {x y} (e : x = y) :
+  make_ob I x = @make_ob C Γ I y.
+Proof.
+use total2_paths_f.
+- apply (idpath I).
+- exact e.
+Defined.
+
+Lemma transportf_make_ob {Γ : PreShv C} {A : Γ ⊢} (I : C) {x y} (e : x = y)
+  (u : pr1 (pr1 A (make_ob I x))) :
+    transportf (λ x, pr1 (pr1 A (make_ob I x))) e u =
+    transportf (λ x, pr1 (pr1 A x)) (make_ob_eq I e) u.
+Proof.
+now induction e.
+Defined.
+
 Lemma temp {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
   make_ob I (# (pr1 Γ) (identity I) ρ) = make_ob I ρ.
 Proof.
-use total2_paths_f.
-- apply (idpath _).
-- exact (eqtohomot (functor_id Γ I) ρ).
+apply (make_ob_eq I (eqtohomot (functor_id Γ I) ρ)).
 Defined.
-
-(* now rewrite (functor_id Γ). *)
-
 
 Lemma special_mor_id {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
   transportf (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (temp ρ) (special_mor (identity I) ρ) = identity (make_ob I ρ).
@@ -154,6 +174,8 @@ Proof.
 now rewrite <- special_mor_id, transportbfinv.
 Defined.
 
+Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
+
 Definition ctx_ext {Γ : PreShv C} (A : Γ ⊢) : PreShv C.
 Proof.
 simpl in *.
@@ -168,127 +190,23 @@ use mk_functor.
     exists (# Γ f (pr1 ρu)).
     apply (# A (special_mor f (pr1 ρu)) (pr2 ρu)).
 - split.
-  + simpl. intros I.
-    simpl.
-    apply funextfun; intros ρu.
-    unfold identity.
-    cbn.
+  + intros I; apply funextfun; intros [ρ u]; cbn in *.
     use total2_paths_f.
-    simpl.
-    
-(* rewrite (functor_id Γ I). *)
-    exact (toforallpaths _ _ _ (functor_id Γ I) (pr1 ρu)).
-    simpl.
-    etrans.
-    Check transport_target_source.
-    Search transportf.
-    induction ρu as [ρ u].
-    
-    
-    cbn in *.
-    apply (test1 _ (λ x, pr1 (pr1 A (make_ob I x)))).
-    rewrite special_mor_id'.
-    cbn.
-    induction ρu as [ρ u].
-    cbn.
-    induction  (toforallpaths (λ _, pr1 (pr1 Γ I)) (# Γ (identity I)) (λ x, x) (functor_id Γ I) ρ).
-    cbn.
-    
-Check (@transport_map _ _ _ _ (special_mor (identity I) (pr1 ρu))).
-Check (@transport_map _ _ _ _ _ _ (special_mor_id' _)).
-Check transportf.
-etrans.
-Check (@transport_map _ _  (λ x, pr1 (pr1 A (make_ob I x))) _ _ _(toforallpaths (λ _, pr1 (pr1 Γ I)) (# Γ (identity I)) (λ x, x) (functor_id Γ I) (pr1 ρu))).
-rewrite special_mor_id'.
-Search transportf "map".
-unfold toforallpaths.
-cbn.
-simpl.
-match goal with |-transportf ?XX (paths_rect _ _ _ _ _ ?YY) ?ZZ = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
-cbn in *.
-induction Y.
-Search transportf toforallpaths.
-induction Y.
-
-induction ((eqtohomot (functor_id Γ I) (pr1 ρu))).
-assert (H : transportf (λ x, pr1 (pr1 A (make_ob I x))) (eqtohomot (functor_id Γ I) ρ) (# A (special_mor (identity I) ρ) u) =
-            # A (transportf (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (temp ρ) (special_mor (identity I) ρ)) u).
-    *
-
-      Search transportf.
-
-
-set (P := @paths).
-cbn.
-
-etrans.
-apply H.
-generalize u.
-eapply eqtohomot.
-etrans.
-eapply maponpaths.
-apply special_mor_id.
-etrans.
-apply (functor_id A).
-apply idpath.
-
-
-
-
-
-
-
-
-
-
-1
-
-rewrite H.
-Search transportf "functor".
-match goal with |-transportf ?XX ?YY (# _ ?ZZ _) = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
-Check (∫ Γ ⟦ I,, # Γ (identity I) ρ, I,, ρ ⟧).
-assert (HZ : transportf (fun XXX : pr1 (pr1 Γ I) => ∫ Γ ⟦ I,, XXX, I,, ρ ⟧) Y Z = identity (make_ob I ρ)).
-cbn.
-apply subtypeEquality.
-intros x.
-apply setproperty.
-simpl.
-cbn.
-unfold Y, Z.
-clear Y; clear Z; clear X.
-unfold make_mor.
-Search "transportf" "idpath".
-rewrite transportf_total2.
-simpl.
-match goal with |-transportf ?XX ?YY ?ZZ = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
-cbn in *.
-induction Y.
-cbn.
-apply idpath.
-assert (moo : transportf X Y (# (pr1 A) Z u) =
-              # (pr1 A) (transportf (λ XXX, ∫ Γ ⟦ I,, XXX, I,, ρ ⟧) Y Z) u).
-unfold X.
-
-Search (transportf (fun _ => _ _) _ _ = _ _).
-
-admit.
-etrans.
-apply moo.
-assert (# (pr1 A) (transportf (λ XXX , ∫ Γ ⟦ I,, XXX, I,, ρ ⟧) Y Z) = idfun _).
-cbn in *.
-admit.
-admit.
-+ admit.
+    * exact (eqtohomot (functor_id Γ I) ρ).
+    * etrans; [use transportf_make_ob|].
+      etrans; [apply (lol (∫ Γ) A _ _ (temp ρ) (special_mor (identity I) ρ) u)|].
+      now rewrite (special_mor_id' ρ), transportfbinv, (functor_id A).
+  + admit.
 Admitted.
 
 End types.
 
 Section Glue.
 
-Local Notation "Γ ⊢" := (TypeIn Γ) (at level 3).
-
 Variables (C : precategory) (hsC : has_homsets C).
 Variables (Γ Δ : PreShv C) (σ : nat_trans (pr1 Δ) (pr1 Γ)).
+
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 3).
 
 Variables (A : Γ ⊢) (T : Δ ⊢).
 
@@ -302,17 +220,17 @@ Proof.
 apply Pullbacks_from_Lims, LimsFunctorCategory, LimsHSET.
 Defined.
 
-Definition Glue' : Γ ⊢.
-Proof.
-set (πAσ := π hsC σ Aσ : PreShv (∫ Γ)).
-set (πT := π hsC σ T : PreShv (∫ Γ)).
-transparent assert (f1 : (_⟦πT,πAσ⟧)).
-  apply (φ_adj _ _ _ (is_left_adjoint_subst_functor hsC σ)).
-  apply (nat_trans_comp (counit_from_left_adjoint (is_left_adjoint_subst_functor hsC σ) T) w).
-transparent assert (f2 : (_⟦A,πAσ⟧)).
-  apply (φ_adj _ _ _ (is_left_adjoint_subst_functor hsC σ) (identity _)).
-apply (PullbackObject _ (PullbacksPreShv _ _ _ f1 f2)).
-Defined.
+(* Definition Glue' : Γ ⊢. *)
+(* Proof. *)
+(* set (πAσ := π hsC σ Aσ : PreShv (∫ Γ)). *)
+(* set (πT := π hsC σ T : PreShv (∫ Γ)). *)
+(* transparent assert (f1 : (_⟦πT,πAσ⟧)). *)
+(*   apply (φ_adj _ _ (is_left_adjoint_subst_functor hsC σ)). *)
+(*   apply (nat_trans_comp (counit_from_left_adjoint (is_left_adjoint_subst_functor hsC σ) T) w). *)
+(* transparent assert (f2 : (_⟦A,πAσ⟧)). *)
+(*   apply (φ_adj _ _ _ (is_left_adjoint_subst_functor hsC σ) (identity _)). *)
+(* apply (PullbackObject _ (PullbacksPreShv _ _ _ f1 f2)). *)
+(* Defined. *)
 
 End Glue.
 
@@ -368,39 +286,39 @@ mkpair.
   now apply maponpaths, pathsinv0, (nat_trans_ax e1).
 Defined.
 
-Local Notation "'[0]'" := f0.
-Local Notation "'[1]'" := f1.
+(* Local Notation "'[0]'" := f0. *)
+(* Local Notation "'[1]'" := f1. *)
 
-Hypothesis (Hpe0 : e0 • p_F = nat_trans_id Id).
-Hypothesis (Hpe1 : e1 • p_F = nat_trans_id Id).
+(* Hypothesis (Hpe0 : e0 • p_F = nat_trans_id Id). *)
+(* Hypothesis (Hpe1 : e1 • p_F = nat_trans_id Id). *)
 
-Lemma pf0 : p • [0] = identity Γ.
-Proof.
-apply (nat_trans_eq has_homsets_HSET).
-simpl; intro I.
-assert (H := nat_trans_eq_pointwise Hpe0 I).
-simpl in H.
-rewrite <- (functor_id Γ).
-eapply pathscomp0.
-eapply pathsinv0.
-eapply (functor_comp Γ).
-unfold compose; simpl.
-now rewrite H.
-Qed.
+(* Lemma pf0 : p • [0] = identity Γ. *)
+(* Proof. *)
+(* apply (nat_trans_eq has_homsets_HSET). *)
+(* simpl; intro I. *)
+(* assert (H := nat_trans_eq_pointwise Hpe0 I). *)
+(* simpl in H. *)
+(* rewrite <- (functor_id Γ). *)
+(* eapply pathscomp0. *)
+(* eapply pathsinv0. *)
+(* eapply (functor_comp Γ). *)
+(* unfold compose; simpl. *)
+(* now rewrite H. *)
+(* Qed. *)
 
-Lemma pf1 : p • [1] = identity Γ.
-Proof.
-apply (nat_trans_eq has_homsets_HSET).
-simpl; intro I.
-assert (H := nat_trans_eq_pointwise Hpe1 I).
-simpl in H.
-rewrite <- (functor_id Γ).
-eapply pathscomp0.
-eapply pathsinv0.
-eapply (functor_comp Γ).
-unfold compose; simpl.
-now rewrite H.
-Qed.
+(* Lemma pf1 : p • [1] = identity Γ. *)
+(* Proof. *)
+(* apply (nat_trans_eq has_homsets_HSET). *)
+(* simpl; intro I. *)
+(* assert (H := nat_trans_eq_pointwise Hpe1 I). *)
+(* simpl in H. *)
+(* rewrite <- (functor_id Γ). *)
+(* eapply pathscomp0. *)
+(* eapply pathsinv0. *)
+(* eapply (functor_comp Γ). *)
+(* unfold compose; simpl. *)
+(* now rewrite H. *)
+(* Qed. *)
 
 (* Section alternative_version. *)
 (* Hypothesis (Hpe0 : p_F • e0 = nat_trans_id F). *)
