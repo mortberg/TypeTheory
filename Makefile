@@ -120,8 +120,6 @@ describe:; git describe --dirty --long --always --abbrev=40 --all
 	echo ;\
 	echo '-Q TypeTheory TypeTheory' ;\
 	echo ;\
-	echo '-Q ../UniMath/UniMath UniMath' ;\
-	echo ;\
 	for i in $(PACKAGES) ;\
 	do <TypeTheory/$$i/.package/files $(FILES_FILTER) |sed "s=^=TypeTheory/$$i/="  ;\
 	done ;\
