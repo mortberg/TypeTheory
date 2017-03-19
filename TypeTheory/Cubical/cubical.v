@@ -24,20 +24,29 @@ Local Open Scope cat.
 
 Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
 
-(* Lemma test1 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) : *)
-(*   px = transportb P e py -> transportf P e px = py. *)
-(* Proof. *)
-(* intros H. *)
-(* rewrite H. *)
-(* apply transportfbinv. *)
-(* Qed. *)
 
-(* Lemma test2 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) : *)
-(*   transportf P e px = py -> px = transportb P e py. *)
-(* Proof. *)
-(* intros H. *)
-(* now rewrite <- H, transportbfinv. *)
-(* Qed. *)
+Definition nat_trans_eq_pointwise' {C C' : precategory_data}
+   {F F' : functor_data C C'} {a a' : nat_trans F F'}:
+      a = a' -> ∏ x, a x = a' x.
+Proof.
+  intro h.
+  now apply toforallpaths, maponpaths.
+Defined.
+
+Lemma test1 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
+  px = transportb P e py -> transportf P e px = py.
+Proof.
+intros H.
+rewrite H.
+apply transportfbinv.
+Qed.
+
+Lemma test2 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
+  transportf P e px = py -> px = transportb P e py.
+Proof.
+intros H.
+now rewrite <- H, transportbfinv.
+Qed.
 
 (* Very important lemma that was a pain to figure out how to state *)
 Lemma transportf_PreShv (C : precategory) (F : PreShv C) (x y z : C)
@@ -242,12 +251,85 @@ Defined.
 
 Local Notation "Γ ⋆ A" := (@ctx_ext Γ A) (at level 3).
 
-Definition p {Γ : PreShv C} (A : Γ ⊢) : (Γ ⋆ A) --> Γ.
+Definition p {Γ : PreShv C} {A : Γ ⊢} : (Γ ⋆ A) --> Γ.
 Proof.
 use mk_nat_trans.
 - intros I X.
   apply (pr1 X).
 - now intros I J f; apply funextsec.
+Defined.
+
+(* TODO: define Γ ⊢ a : A and prove that these are in 1-1
+   correspondence with sections of p *)
+
+Definition TermIn {Γ : PreShv C} (A : Γ ⊢) : UU :=
+  ∑ s : Γ --> Γ ⋆ A, s · p = 1.
+
+Local Notation "Γ ⊢ A" := (@TermIn Γ A) (at level 3).
+
+Definition TermInDirect {Γ : PreShv C} (A : Γ ⊢) : UU.
+Proof.
+simpl in *.
+use total2.
+- apply (∏ (I : C) (ρ : pr1 (Γ I)), pr1 (A (make_ob I ρ))).
+- intros a.
+  apply (∏ (I J : C) (f : J --> I) (ρ : pr1 (Γ I)),
+           # A (special_mor f ρ) (a I ρ) = a J (# Γ f ρ)).
+Defined.
+
+Lemma dir1 {Γ : PreShv C} (A : Γ ⊢) : Γ ⊢ A → TermInDirect A.
+Proof.
+intros [a p].
+mkpair.
+- intros I ρ.
+  apply (transportf (λ x, pr1 (pr1 A (make_ob I x))) (eqtohomot (nat_trans_eq_pointwise' p I) ρ) (pr2 (pr1 a I ρ))).
+- intros I J f ρ.
+Search transportf "funct".
+generalize (fiber_paths (!(eqtohomot (nat_trans_ax a I J f) ρ))).
+intros e.
+set (e' := (functtransportf pr1 (λ x, pr1 (pr1 (pr1 A) (make_ob J x))) (! eqtohomot (nat_trans_ax a I J f) ρ)(# (pr1 A) (special_mor f (pr1 (pr1 a I ρ))) (pr2 (pr1 a I ρ))))).
+set (e'' := pathscomp0 e' e).
+etrans.
+Focus 2.
+eapply maponpaths.
+apply e''.
+apply pathsinv0.
+apply (test1 _ (λ x, pr1 ((pr1 A) (make_ob J x)))).
+clear e e' e''.
+unfold transportb.
+apply pathsinv0.
+etrans.
+apply transportf_make_ob.
+etrans.
+apply (transportf_PreShv (∫ Γ) A).
+admit.
+Admitted.
+
+Lemma dir2 {Γ : PreShv C} (A : Γ ⊢) : TermInDirect A → TermIn A.
+Proof.
+intros [a p].
+cbn in *.
+mkpair.
++ simpl. 
+use mk_nat_trans.
+- simpl.
+intros I ρ.
+mkpair.
+*
+apply ρ.
+* apply (a I ρ).
+- 
+intros I J f.
+simpl in *.
+apply funextfun; intro ρ; cbn.
+apply pair_path_in2.
+now rewrite p.
++ cbn.
+apply nat_trans_eq.
+apply has_homsets_HSET.
+simpl.
+intros I.
+now apply funextfun.
 Defined.
 
 End types.
