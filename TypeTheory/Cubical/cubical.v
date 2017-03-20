@@ -24,16 +24,9 @@ Local Open Scope cat.
 
 Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
 
+Section upstream.
 
-Definition nat_trans_eq_pointwise' {C C' : precategory_data}
-   {F F' : functor_data C C'} {a a' : nat_trans F F'}:
-      a = a' -> ∏ x, a x = a' x.
-Proof.
-  intro h.
-  now apply toforallpaths, maponpaths.
-Defined.
-
-Lemma test1 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
+Lemma transportf_to_transportb (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
   px = transportb P e py -> transportf P e px = py.
 Proof.
 intros H.
@@ -41,14 +34,13 @@ rewrite H.
 apply transportfbinv.
 Qed.
 
-Lemma test2 (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
+Lemma transportb_to_transportf (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
   transportf P e px = py -> px = transportb P e py.
 Proof.
 intros H.
 now rewrite <- H, transportbfinv.
 Qed.
 
-(* Very important lemma that was a pain to figure out how to state *)
 Lemma transportf_PreShv (C : precategory) (F : PreShv C) (x y z : C)
   (e : x = y) (f : C⟦x,z⟧) (u : pr1 (pr1 F z)) : 
   transportf (λ x, pr1 (pr1 F x)) e (# (pr1 F) f u) =
@@ -57,45 +49,113 @@ Proof.
 now induction e.
 Qed.
 
-Section cat_of_elems_theory.
-
-Context {C : precategory} (hsC : has_homsets C).
-
-Definition nat_trans_cat_of_elems {Γ Δ : PreShv C} (α : Γ --> Δ) :
-  functor (∫ Γ) (∫ Δ) := cat_of_elems_on_nat_trans α.
-
-Definition subst_functor {Γ Δ : PreShv C} (α : Γ --> Δ) :
-  functor (PreShv (∫ Δ)) (PreShv (∫ Γ)).
+Lemma pr1_pair_path_in2 (X : UU) (P : X → UU) (x : X) (p q : P x) (e : p = q) :
+  maponpaths pr1 (pair_path_in2 P e) = idpath x.
 Proof.
-use pre_composition_functor.
-- apply has_homsets_opp, has_homsets_cat_of_elems, hsC.
-- now apply functor_opp, nat_trans_cat_of_elems.
+now induction e.
+Qed.
+
+End upstream.
+
+Section prelims.
+
+Context {C : precategory} (hsC : has_homsets C) {Γ : PreShv C}.
+
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 3).
+
+(* Any f : J → I and ρ : Γ I defines a morphism from (J,,# Γ ρ) to (I,,ρ) in ∫ Γ *)
+Definition mor_to_el_mor {I J : C} (f : J --> I) (ρ : pr1 Γ I : hSet) :
+  ∫ Γ ⟦ make_ob J (# (pr1 Γ) f ρ), make_ob I ρ ⟧ := 
+  make_mor (J,,# (pr1 Γ) f ρ) (I,,ρ) f (idpath (# (pr1 Γ) f ρ)).
+
+Lemma make_ob_eq {I : C} {x y} (e : x = y) :
+  make_ob I x = @make_ob C Γ I y.
+Proof.
+apply pair_path_in2, e.
 Defined.
 
-Lemma is_left_adjoint_subst_functor {Γ Δ : PreShv C} (α : Γ --> Δ) :
-  is_left_adjoint (subst_functor α).
+Lemma transportf_make_ob {A : Γ ⊢} {I : C} {x y} (e : x = y)
+  (u : pr1 (pr1 A (make_ob I x))) :
+    transportf (λ x, pr1 (pr1 A (make_ob I x))) e u =
+    transportf (λ x, pr1 (pr1 A x)) (make_ob_eq e) u.
 Proof.
-use (RightKanExtension_from_limits _ _ _ LimsHSET). (* apply is slow here... *)
+now induction e.
+Qed.
+
+Lemma make_ob_identity_eq {I : C} (ρ : pr1 (pr1 Γ I)) :
+  make_ob I (# (pr1 Γ) (identity I) ρ) = make_ob I ρ.
+Proof.
+exact (make_ob_eq (eqtohomot (functor_id Γ I) ρ)).
 Defined.
 
-(* This name is maybe not very good *)
-Definition π {F G : PreShv C} (α : nat_trans (pr1 F) (pr1 G)) :=
-   right_adjoint (is_left_adjoint_subst_functor α).
+Lemma mor_to_el_mor_id {I : C} (ρ : pr1 (pr1 Γ I)) :
+  mor_to_el_mor (identity I) ρ =
+  transportb (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (make_ob_eq (eqtohomot (functor_id Γ I) ρ)) (identity _).
+Proof.
+apply (transportb_to_transportf _ (λ X : ∫ Γ, ∫ Γ ⟦X,_⟧)), cat_of_elems_mor_eq; simpl.
+rewrite transportf_total2; simpl.
+etrans; [apply (functtransportf pr1 (λ x, C⟦x,I⟧) (make_ob_identity_eq _))|].
+assert (H : maponpaths pr1 (make_ob_identity_eq ρ) = idpath _).
+{ apply pr1_pair_path_in2. }
+now rewrite H, idpath_transportf.
+Qed.
 
-End cat_of_elems_theory.
+Lemma mor_to_el_mor_comp_eq {I J K} (ρ : pr1 (pr1 Γ I)) (f : C^op⟦I,J⟧) (g : C^op⟦J,K⟧) :
+ make_ob _ (# (pr1 Γ) (f · g) ρ) = make_ob _ (# (pr1 Γ) g (# (pr1 Γ) f ρ)).
+Proof.
+exact (make_ob_eq (eqtohomot (functor_comp Γ f g) ρ)).
+Defined.
+
+Lemma mor_to_el_mor_comp {I J K} (ρ : pr1 (pr1 Γ I)) (f : C^op⟦I,J⟧) (g : C^op⟦J,K⟧) :
+  mor_to_el_mor (f · g) ρ =
+  transportb (λ X, ∫ Γ⟦X,_⟧) (mor_to_el_mor_comp_eq ρ f g)
+             (mor_to_el_mor g (# (pr1 Γ) f ρ) · mor_to_el_mor f ρ).
+Proof.
+apply (transportb_to_transportf _ (λ X : ∫ Γ, ∫ Γ ⟦X,_⟧)), cat_of_elems_mor_eq; simpl.
+rewrite transportf_total2; simpl.
+etrans; [apply (functtransportf pr1 (λ x, C⟦x,I⟧) (mor_to_el_mor_comp_eq ρ f g))|].
+assert (H : maponpaths pr1 (mor_to_el_mor_comp_eq ρ f g) = idpath _).
+{ apply pr1_pair_path_in2. }
+now rewrite H, idpath_transportf.
+Qed.
+
+End prelims.
 
 Section types.
 
 Context {C : precategory} (hsC : has_homsets C).
 
-Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 3).
+(* Γ ⊢ A is interpreted as a presheaf of ∫ Γ. In Coq this is written A : Γ ⊢ *)
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 50).
+
+Local Notation "'1'" := (nat_trans_id _).
+
+(* The substitution functor *)
+Definition subst_functor {Γ Δ : PreShv C} (σ : Δ --> Γ) :
+  functor (PreShv (∫ Γ)) (PreShv (∫ Δ)).
+Proof.
+use pre_composition_functor.
+- apply has_homsets_opp, has_homsets_cat_of_elems, hsC.
+- apply functor_opp, (cat_of_elems_on_nat_trans σ).
+Defined.
+
+Lemma is_left_adjoint_subst_functor {Γ Δ : PreShv C} (σ : Δ --> Γ) :
+  is_left_adjoint (subst_functor σ).
+Proof.
+use (RightKanExtension_from_limits _ _ _ LimsHSET). (* apply is slow here... *)
+Defined.
+
+(* The right adjoint to substitution *)
+Definition π {Γ Δ : PreShv C} (σ : Δ --> Γ) :=
+   right_adjoint (is_left_adjoint_subst_functor σ).
+
+(* TODO: define the left adjoints as well? *)
 
 (* Given Γ ⊢ A and a substitution σ : Δ → Γ we get Δ ⊢ Aσ *)
 Definition subst_type {Γ Δ : PreShv C} (A : Γ ⊢) (σ : Δ --> Γ) : Δ ⊢ :=
-  subst_functor hsC σ A.
+  subst_functor σ A.
 
-Local Notation "'1'" := (nat_trans_id _).
-Notation "A ⦃ s ⦄" := (subst_type A s) (at level 50, format "A ⦃ s ⦄").
+Notation "A ⦃ s ⦄" := (subst_type A s) (at level 40, format "A ⦃ s ⦄").
 
 Lemma subst_type_id (Γ : PreShv C) (A : Γ ⊢) : A⦃1⦄ = A.
 Proof.
@@ -116,110 +176,7 @@ use functor_data_eq.
   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|].
 Qed.
 
-Definition special_mor {Γ : PreShv C} {I J : C} (f : C^op⟦I,J⟧) (ρ : pr1 (pr1 Γ I)) :
-  ∫ Γ ⟦ make_ob J (# (pr1 Γ) f ρ), make_ob I ρ ⟧ := 
-  make_mor (J,, # (pr1 Γ) f ρ) (I,, ρ) f (idpath (# (pr1 Γ) f ρ)).
-
-Lemma make_ob_eq {Γ : PreShv C} (I : C) {x y} (e : x = y) :
-  make_ob I x = @make_ob C Γ I y.
-Proof.
-apply pair_path_in2, e.
-(* use total2_paths_f. *)
-(* - apply (idpath I). *)
-(* - exact e. *)
-Defined.
-
-(* upstream *)
-Lemma key_lemma (X : UU) (P : X → UU) (x : X) (p q : P x) (e : p = q) :
-  maponpaths pr1 (pair_path_in2 P e) = idpath x.
-Proof.
-now induction e.
-Qed.
-
-Lemma transportf_make_ob {Γ : PreShv C} {A : Γ ⊢} (I : C) {x y} (e : x = y)
-  (u : pr1 (pr1 A (make_ob I x))) :
-    transportf (λ x, pr1 (pr1 A (make_ob I x))) e u =
-    transportf (λ x, pr1 (pr1 A x)) (make_ob_eq I e) u.
-Proof.
-now induction e.
-Qed.
-
-Lemma temp {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
-  make_ob I (# (pr1 Γ) (identity I) ρ) = make_ob I ρ.
-Proof.
-exact (make_ob_eq I (eqtohomot (functor_id Γ I) ρ)).
-Defined.
-
-Lemma special_mor_id {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
-  transportf (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (temp ρ) (special_mor (identity I) ρ) =
-  identity (make_ob I ρ).
-Proof.
-apply cat_of_elems_mor_eq; simpl.
-rewrite transportf_total2; cbn.
-cbn in *.
-unfold temp.
-unfold make_ob_eq.
-unfold pair_path_in2.
-unfold maponpaths.
-match goal with |-transportf ?XX (paths_rect _ _ _ _ _ ?YY) ?ZZ = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
-cbn in *.
-now induction Y.
-Qed.
-
-Lemma temp_idpath  {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) : maponpaths pr1 (temp ρ) = idpath _.
-Proof.
-apply key_lemma.
-Qed.
-
-Lemma special_mor_id' {Γ : PreShv C} {I : C} (ρ : pr1 (pr1 Γ I)) :
-  special_mor (identity I) ρ = transportb (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (temp ρ) (identity (make_ob I ρ)).
-Proof.
-now rewrite <- special_mor_id, transportbfinv.
-Qed.
-
-Lemma temp2 {Γ : PreShv C} {I J K : C^op} (ρ : pr1 (pr1 Γ I))
-  (f : C^op⟦I,J⟧) (g : C^op⟦J,K⟧) :
- make_ob _ (# (pr1 Γ) (f · g) ρ) = make_ob _ (# (pr1 Γ) g (# (pr1 Γ) f ρ)).
-Proof.
-exact (make_ob_eq K (eqtohomot (functor_comp Γ f g) ρ)).
-Defined.
-
-Lemma temp2_idpath {Γ : PreShv C} {I J K : C^op} (ρ : pr1 (pr1 Γ I))
-  (f : C^op⟦I,J⟧) (g : C^op⟦J,K⟧) :
-    maponpaths pr1 (temp2 ρ f g) = idpath _.
-Proof.
-apply key_lemma.
-Qed.
-
-Lemma special_mor_comp {Γ : PreShv C} {I J K : C^op} (ρ : pr1 (pr1 Γ I))
-  (f : C^op⟦I,J⟧) (g : C^op⟦J,K⟧) :
-    transportf (λ X, ∫ Γ⟦X, make_ob _ ρ⟧) (temp2 ρ f g) (special_mor (f · g) ρ) =
-    special_mor g (# (pr1 Γ) f ρ) · special_mor f ρ.
-Proof.
-apply cat_of_elems_mor_eq.
-simpl.
-rewrite transportf_total2.
-simpl.
-match goal with |-transportf ?XX ?YY ?ZZ = _ => set (X := XX); set (Y := YY); set (Z := ZZ) end.
-etrans.
-apply (functtransportf pr1 (λ x, C⟦x,I⟧) Y).
-assert (maponpaths pr1 Y = idpath _).
-cbn.
-apply temp2_idpath.
-rewrite X0.
-now rewrite idpath_transportf.
-(* apply transport_source_precompose. *)
-Qed.
-
-Lemma special_mor_comp' {Γ : PreShv C} {I J K : C^op} (ρ : pr1 (pr1 Γ I))
-  (f : C^op⟦I,J⟧) (g : C^op⟦J,K⟧) :
-   special_mor (f · g) ρ =
-   transportb (λ X, ∫ Γ⟦X, make_ob _ ρ⟧) (temp2 ρ f g) (special_mor g (# (pr1 Γ) f ρ) · special_mor f ρ).
-Proof.
-now rewrite <- special_mor_comp, transportbfinv.
-Qed.
-
-
+(* Context extension: given a context Γ and a type Γ ⊢ A define Γ.A *)
 Definition ctx_ext {Γ : PreShv C} (A : Γ ⊢) : PreShv C.
 Proof.
 use mk_functor.
@@ -231,27 +188,29 @@ use mk_functor.
       apply (pr1 A (make_ob I ρ)).
   + intros I J f ρu.
     exists (# (pr1 Γ) f (pr1 ρu)).
-    apply (# (pr1 A) (special_mor f (pr1 ρu)) (pr2 ρu)).
+    apply (# (pr1 A) (mor_to_el_mor f (pr1 ρu)) (pr2 ρu)).
 - split.
   + intros I; apply funextfun; intros [ρ u].
     use total2_paths_f.
     * exact (eqtohomot (functor_id Γ I) ρ).
     * etrans; [use transportf_make_ob|].
       etrans; [apply (transportf_PreShv (∫ Γ) A)|]; cbn.
-      now rewrite (special_mor_id' ρ), transportfbinv, (functor_id A).
+      now rewrite (mor_to_el_mor_id ρ), transportfbinv, (functor_id A).
    + intros I J K f g; apply funextfun; intros [ρ u].
      use total2_paths_f.
      * exact (eqtohomot (functor_comp Γ f g) ρ).
      * etrans; [use transportf_make_ob|].
        etrans; [apply (transportf_PreShv (∫ Γ) A)|].
-       rewrite (special_mor_comp' _ f g), transportfbinv.
-       generalize u.
-       apply eqtohomot, (functor_comp A (special_mor f ρ)  (special_mor g (# (pr1 Γ) f ρ))).
+       rewrite (mor_to_el_mor_comp _ f g), transportfbinv.
+       generalize u; simpl in *.
+       apply eqtohomot, (functor_comp A (mor_to_el_mor f ρ)  (mor_to_el_mor g (# (pr1 Γ) f ρ))).
 Defined.
 
-Local Notation "Γ ⋆ A" := (@ctx_ext Γ A) (at level 3).
+(* It would be nice to use the notation Γ.A here, but it doesn't seem to work *)
+Local Notation "Γ ⋆ A" := (@ctx_ext Γ A) (at level 30).
 
-Definition p {Γ : PreShv C} {A : Γ ⊢} : (Γ ⋆ A) --> Γ.
+(* Context projection *)
+Definition p {Γ : PreShv C} {A : Γ ⊢} : Γ ⋆ A --> Γ.
 Proof.
 use mk_nat_trans.
 - intros I X.
@@ -259,79 +218,211 @@ use mk_nat_trans.
 - now intros I J f; apply funextsec.
 Defined.
 
-(* TODO: define Γ ⊢ a : A and prove that these are in 1-1
-   correspondence with sections of p *)
-
+(* Γ ⊢ a : A are interpreted as sections s : Γ --> Γ.A to p *)
 Definition TermIn {Γ : PreShv C} (A : Γ ⊢) : UU :=
   ∑ s : Γ --> Γ ⋆ A, s · p = 1.
 
-Local Notation "Γ ⊢ A" := (@TermIn Γ A) (at level 3).
-
+(* Direct definition of Γ ⊢ a : A *)
 Definition TermInDirect {Γ : PreShv C} (A : Γ ⊢) : UU.
 Proof.
-simpl in *.
 use total2.
-- apply (∏ (I : C) (ρ : pr1 (Γ I)), pr1 (A (make_ob I ρ))).
+- apply (∏ (I : C) (ρ : pr1 (pr1 Γ I)), pr1 (pr1 A (make_ob I ρ))).
 - intros a.
-  apply (∏ (I J : C) (f : J --> I) (ρ : pr1 (Γ I)),
-           # A (special_mor f ρ) (a I ρ) = a J (# Γ f ρ)).
+  apply (∏ (I J : C) (f : J --> I) (ρ : pr1 (pr1 Γ I)),
+           # (pr1 A) (mor_to_el_mor f ρ) (a I ρ) = a J (# (pr1 Γ) f ρ)).
 Defined.
 
-Lemma dir1 {Γ : PreShv C} (A : Γ ⊢) : Γ ⊢ A → TermInDirect A.
+Local Notation "Γ ⊢ A" := (@TermInDirect Γ A) (at level 50).
+
+Lemma TermInDirect_to_TermIn {Γ : PreShv C} (A : Γ ⊢) : TermInDirect A → TermIn A.
 Proof.
 intros [a p].
+mkpair.
++ use mk_nat_trans.
+  - intros I ρ.
+    apply (ρ,,a I ρ).
+  - intros I J f.
+    apply funextfun; intro ρ; apply pair_path_in2.
+    now rewrite p.
++ abstract (apply (nat_trans_eq has_homsets_HSET);
+            now intros I; simpl; apply funextfun).
+Defined.
+
+(* TODO: prove this *)
+(* Lemma TermIn_to_TermInDirect {Γ : PreShv C} (A : Γ ⊢) : Γ ⊢ A → TermInDirect A. *)
+(* Proof. *)
+(* intros [a p]. *)
+(* mkpair. *)
+(* - intros I ρ. *)
+(*   apply (transportf (λ x, pr1 (pr1 A (make_ob I x))) (eqtohomot (nat_trans_eq_pointwise p I) ρ) (pr2 (pr1 a I ρ))). *)
+(* - intros I J f ρ. *)
+(*   generalize (fiber_paths (!(eqtohomot (nat_trans_ax a I J f) ρ))). *)
+(*   intros e. *)
+(*   set (e' := (functtransportf pr1 (λ x, pr1 (pr1 (pr1 A) (make_ob J x))) (! eqtohomot (nat_trans_ax a I J f) ρ)(# (pr1 A) (mor_to_el_mor f (pr1 (pr1 a I ρ))) (pr2 (pr1 a I ρ))))). *)
+(*   set (e'' := pathscomp0 e' e). *)
+(*   etrans. *)
+(*   Focus 2. *)
+(*   eapply maponpaths, e''. *)
+(*   apply pathsinv0. *)
+(*   apply (transportf_to_transportb _ (λ x, pr1 ((pr1 A) (make_ob J x)))). *)
+(*   clear e e' e''. *)
+(*   unfold transportb. *)
+(*   apply pathsinv0. *)
+(*   etrans. *)
+(*   apply transportf_make_ob. *)
+(*   etrans. *)
+(*   apply (transportf_PreShv (∫ Γ) A). *)
+(* admit. *)
+(* Admitted. *)
+
+Definition q {Γ : PreShv C} (A : Γ ⊢) : Γ ⋆ A ⊢ A⦃p⦄.
+Proof.
+(* apply TermInDirect_to_TermIn. *)
+mkpair.
++ intros I ρ.
+  apply (pr2 ρ).
++ abstract (intros I J f ρ; cbn; apply map_on_two_paths; trivial;
+            now apply cat_of_elems_mor_eq).
+Defined.
+
+(* Below is a direct definition that is very slow *)
+(* Definition q {Γ : PreShv C} (A : Γ ⊢) : Γ ⋆ A ⊢ A⦃p⦄. *)
+(* Proof. *)
+(* mkpair. *)
+(* - use mk_nat_trans. *)
+(*   + intros I ρ. *)
+(*     exists ρ. *)
+(*     apply (pr2 ρ). *)
+(*   + abstract (intros I J f; apply funextsec; intro ρ; *)
+(*               apply pair_path_in2; cbn;  *)
+(*               apply map_on_two_paths; trivial; *)
+(*               now apply cat_of_elems_mor_eq). *)
+(* (* This abstract is VERY slow *) *)
+(* - abstract (apply (nat_trans_eq has_homsets_HSET); intros I; simpl; *)
+(*             apply funextsec; intro ρ; apply idpath). *)
+(* Defined. *)
+
+
+(* Given Γ ⊢ a : A and a substitution σ : Δ → Γ we get Δ ⊢ aσ : Aσ *)
+Definition subst_term {Γ Δ : PreShv C} (σ : Δ --> Γ) {A : Γ ⊢} (a : Γ ⊢ A) : Δ ⊢ A⦃σ⦄.
+Proof.
+(* mkpair. *)
+(* + cbn in *. *)
+(*   use mk_nat_trans. *)
+(* - simpl; intros I ρ. *)
+(*   mkpair. *)
+(*   apply ρ. *)
+(*   induction a as [a pa]. *)
+(*   cbn in *. *)
+(*   set (pr2 (pr1 a I (σ I ρ))). *)
+(*   cbn in *. *)
+(*   set (e := eqtohomot (nat_trans_eq_pointwise pa I) (σ I ρ)). *)
+(*   cbn in e. *)
+(*   set (x := pr2 (a _ (σ I ρ))). *)
+(*   cbn in x. *)
+(*   apply (transportf (λ x, pr1 ((pr1 A) (make_ob I x))) e x). *)
+(* - intros I J f. *)
+(*   cbn in *. *)
+  (* apply funextsec; intro ρ. *)
+  (* apply pair_path_in2; cbn. *)
+  (* cbn. *)
+
+(* apply TermInDirect_to_TermIn. *)
 mkpair.
 - intros I ρ.
-  apply (transportf (λ x, pr1 (pr1 A (make_ob I x))) (eqtohomot (nat_trans_eq_pointwise' p I) ρ) (pr2 (pr1 a I ρ))).
-- intros I J f ρ.
-Search transportf "funct".
-generalize (fiber_paths (!(eqtohomot (nat_trans_ax a I J f) ρ))).
-intros e.
-set (e' := (functtransportf pr1 (λ x, pr1 (pr1 (pr1 A) (make_ob J x))) (! eqtohomot (nat_trans_ax a I J f) ρ)(# (pr1 A) (special_mor f (pr1 (pr1 a I ρ))) (pr2 (pr1 a I ρ))))).
-set (e'' := pathscomp0 e' e).
-etrans.
-Focus 2.
-eapply maponpaths.
-apply e''.
-apply pathsinv0.
-apply (test1 _ (λ x, pr1 ((pr1 A) (make_ob J x)))).
-clear e e' e''.
-unfold transportb.
-apply pathsinv0.
-etrans.
-apply transportf_make_ob.
-etrans.
-apply (transportf_PreShv (∫ Γ) A).
-admit.
+  simpl in *.
+  apply (pr1 a _ (pr1 σ I ρ)).
+- intros I J f ρ.  
+  cbn in *.
+  generalize (pr2 a I J f (σ _ ρ)).
+  set (H := eqtohomot (nat_trans_ax σ I J f) ρ).
+  cbn in *.
+  intros H2.
+  match goal with |- ?XX = ?YY => set (X := XX); set (Y := YY) end.
+  cbn in *.
+  set (W := # (pr1 A) (mor_to_el_mor f (σ I ρ)) (pr1 a I (σ I ρ))).
+  pathvia (transportb (λ x, pr1 ((pr1 A) (make_ob J x))) H W).
+  { unfold X, W, H.
+  apply pathsinv0.
+  etrans; [use transportf_make_ob|].
+  etrans; [apply (transportf_PreShv (∫ Γ) A)|].
+  apply map_on_two_paths; trivial.
+  apply cat_of_elems_mor_eq.
+  cbn in *.
+  match goal with |- get_mor (transportf _ ?XXX _) = _ => set (XX := XXX) end.
+  unfold mor_to_el_mor, make_mor.
+  rewrite transportf_total2.
+  cbn.
+  assert (transportf (λ x : ∑ c : C, pr1 (Γ c), C ⟦ pr1 x, I ⟧) XX f =
+          transportf (λ x, C ⟦ x, I ⟧) (maponpaths pr1 XX) f).
+  induction XX.
+  trivial.
+  etrans.
+  apply X0.
+  assert (HHH : maponpaths pr1 XX = idpath _).
+  apply pr1_pair_path_in2.
+  rewrite HHH.
+  now rewrite idpath_transportf.
+  }
+  set (W2 := pr1 a J (# (pr1 Γ) f (σ I ρ))).
+  apply pathsinv0.
+  pathvia (transportb (λ x, pr1 ((pr1 A) (make_ob J x))) H W2).
+  { unfold  Y, H, W2.
+    apply pathsinv0.
+    Check (pr1 a J (# (pr1 Γ) f (σ I ρ))).
+    admit. }
+  now apply maponpaths.
 Admitted.
 
-Lemma dir2 {Γ : PreShv C} (A : Γ ⊢) : TermInDirect A → TermIn A.
+Definition subst_pair {Γ Δ : PreShv C} (σ : Δ --> Γ) {A : Γ ⊢} (a : Δ ⊢ A⦃σ⦄) : Δ --> Γ ⋆ A.
 Proof.
-intros [a p].
-cbn in *.
-mkpair.
-+ simpl. 
 use mk_nat_trans.
-- simpl.
-intros I ρ.
-mkpair.
-*
-apply ρ.
-* apply (a I ρ).
-- 
-intros I J f.
-simpl in *.
-apply funextfun; intro ρ; cbn.
-apply pair_path_in2.
-now rewrite p.
-+ cbn.
-apply nat_trans_eq.
-apply has_homsets_HSET.
-simpl.
-intros I.
-now apply funextfun.
+- simpl; intros I ρ.
+  mkpair.
+  + apply (pr1 σ _ ρ).
+  + apply (pr1 a I ρ).
+- intros I J f.
+  apply funextsec; intro ρ; cbn in *.
+  use total2_paths2_f.
+  apply (eqtohomot (nat_trans_ax σ I J f) ρ).
+  set (H:=pr2 a I J f ρ).
+  cbn in H.
+  etrans.
+  eapply maponpaths.
+  apply (!H).
+  etrans; [use transportf_make_ob|].
+  etrans; [apply (transportf_PreShv (∫ Γ) A)|].
+  apply map_on_two_paths; trivial.
+    apply cat_of_elems_mor_eq.
+  cbn.
+  rewrite transportf_total2.
+  cbn.
+  match goal with |- transportf _ ?XXX _ = _ => set (XX := XXX) end.
+  assert (transportf (λ x : ∑ c : C, pr1 (Γ c), C ⟦ pr1 x, I ⟧) XX f =
+          transportf (λ x, C ⟦ x, I ⟧) (maponpaths pr1 XX) f).
+  induction XX.
+  trivial.
+  etrans.
+  apply X.
+  assert (HHH : maponpaths pr1 XX = idpath _).
+  apply pr1_pair_path_in2.
+  rewrite HHH.
+  now rewrite idpath_transportf.
 Defined.
 
+Lemma test {Γ : PreShv C} {A : Γ ⊢} : subst_pair p (q A) = 1.
+Proof.
+apply (nat_trans_eq has_homsets_HSET).
+simpl; intros I.
+apply funextsec; intro ρ; cbn.
+apply pathsinv0, tppr.
+Qed.
+
+
+
+
+
+              
 End types.
 
 Section Glue.
