@@ -218,6 +218,17 @@ use mk_nat_trans.
 - now intros I J f; apply funextsec.
 Defined.
 
+(* Note that ctx_ext and p defines one part of the equivalence:
+
+     PreShv(∫ Γ) ≃ PreShv(C) / Γ
+
+by: Γ ⊢ A  ↦  (Γ ⋆ A,p)
+
+Intuition: Γ ⋆ A is over Γ by p
+
+*)
+
+
 (* Direct definition of Γ ⊢ a : A *)
 Definition TermIn {Γ : PreShv C} (A : Γ ⊢) : UU.
 Proof.
@@ -291,6 +302,37 @@ mkpair.
   { apply pathsinv0, temp. }
   now apply maponpaths.
 Defined.
+
+Lemma subst_term_id {Γ : PreShv C} {A : Γ ⊢} (a : Γ ⊢ A) :
+  subst_term 1 a = transportb (λ x, Γ ⊢ x) (subst_type_id Γ A) a.
+Proof.
+induction a as [a1 a2].
+apply subtypeEquality.
+(* TODO: state a general equality lemma for elements *)
+intros x.
+repeat (apply impred; intros).
+apply setproperty.
+cbn.
+apply funextsec; intro I.
+apply funextsec; intro ρ.
+admit.
+Admitted.
+
+Lemma subst_term_comp {Γ Δ Θ : PreShv C} (σ1 : Θ --> Δ) (σ2 : Δ --> Γ) {A : Γ ⊢} (a : Γ ⊢ A) :
+  subst_term (σ1 · σ2) a =
+  transportb (λ x, Θ ⊢ x) (subst_type_comp _ _ _ σ1 σ2 A)(subst_term σ1 (subst_term σ2 a)).
+Proof.
+induction a as [a1 a2].
+apply subtypeEquality.
+(* TODO: state a general equality lemma for elements *)
+intros x.
+repeat (apply impred; intros).
+apply setproperty.
+cbn.
+apply funextsec; intro I.
+apply funextsec; intro ρ.
+admit.
+Admitted.
 
 Definition subst_pair {Γ Δ : PreShv C} (σ : Δ --> Γ) {A : Γ ⊢} (a : Δ ⊢ A⦃σ⦄) : Δ --> Γ ⋆ A.
 Proof.
