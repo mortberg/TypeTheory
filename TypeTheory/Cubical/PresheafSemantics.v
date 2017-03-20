@@ -20,6 +20,8 @@ Require Import UniMath.CategoryTheory.limits.graphs.pullbacks.
 Require Import UniMath.CategoryTheory.Presheaf.
 Require Import UniMath.CategoryTheory.ElementsOp.
 
+Require Import TypeTheory.OtherDefs.CwF_Pitts.
+
 Local Open Scope cat.
 
 Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
@@ -59,9 +61,9 @@ End upstream.
 
 Section prelims.
 
-Context {C : precategory} (hsC : has_homsets C) {Γ : PreShv C}.
+Context {C : precategory} {Γ : PreShv C}.
 
-Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 3).
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 50).
 
 (* Any f : J → I and ρ : Γ I defines a morphism from (J,,# Γ ρ) to (I,,ρ) in ∫ Γ *)
 Definition mor_to_el_mor {I J : C} (f : J --> I) (ρ : pr1 Γ I : hSet) :
@@ -155,7 +157,7 @@ Definition π {Γ Δ : PreShv C} (σ : Δ --> Γ) :=
 Definition subst_type {Γ Δ : PreShv C} (A : Γ ⊢) (σ : Δ --> Γ) : Δ ⊢ :=
   subst_functor σ A.
 
-Notation "A ⦃ s ⦄" := (subst_type A s) (at level 40, format "A ⦃ s ⦄").
+Local Notation "A ⦃ s ⦄" := (subst_type A s) (at level 40, format "A ⦃ s ⦄").
 
 (** A1 = A *)
 Lemma subst_type_id (Γ : PreShv C) (A : Γ ⊢) : A⦃1⦄ = A.
@@ -471,3 +473,86 @@ Defined.
 (* Admitted. *)
 
 End types.
+
+
+Section CwF.
+
+Context (C : precategory) (hsC : has_homsets C).
+
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 50).
+Local Notation "Γ ⊢ A" := (@TermIn _ Γ A) (at level 50).
+Local Notation "A ⦃ s ⦄" := (subst_type hsC A s) (at level 40, format "A ⦃ s ⦄").
+Local Notation "Γ ⋆ A" := (@ctx_ext _ Γ A) (at level 30).
+
+Definition PreShv_tt_structure : tt_structure (PreShv C).
+Proof.
+exists (λ Γ, Γ ⊢).
+intros Γ A.
+exact (Γ ⊢ A).
+Defined.
+
+Lemma PreShv_reindx_structure : reindx_structure PreShv_tt_structure.
+Proof.
+mkpair.
+- intros Γ Δ A σ.
+  exact (A⦃σ⦄).
+- intros Γ Δ A a σ.
+  exact (subst_term _ σ a).
+Defined.
+
+Definition PreShv_tt_reindx_type_struct : tt_reindx_type_struct (PreShv C).
+Proof.
+mkpair.
++ exists (PreShv_tt_structure,,PreShv_reindx_structure).
+  intros Γ A.
+  exists (Γ ⋆ A).
+  apply p.
++ intros Γ A.
+  split.
+  * apply q.
+  * intros Δ σ a.
+    exact (subst_pair hsC σ a).
+Defined.
+
+Lemma PreShv_reindx_laws : reindx_laws PreShv_tt_reindx_type_struct.
+Proof.
+mkpair.
+- mkpair.
+  + intros Γ A.
+    apply subst_type_id.
+  + intros Γ Δ Θ σ1 σ2 A.
+    apply (subst_type_comp hsC).
+- mkpair.
+  + intros Γ A a.
+    apply (subst_term_id hsC a).
+  + intros Γ Δ Θ σ1 σ2 A a.
+    exact (subst_term_comp hsC σ2 σ1 a). (* why is this slow? *)
+Defined.
+
+Definition PreShv_CwF : cwf_struct (PreShv C).
+Proof.
+exists PreShv_tt_reindx_type_struct.
+mkpair.
+- exists PreShv_reindx_laws.
+  repeat split.
+  + intros Γ A Δ σ a.
+    exists (subst_pair_p hsC σ a).
+    admit. (* we expressed this differently *)
+  + intros Γ A Δ Θ σ1 σ2 a.
+    admit. (* don't have yet *)
+  + intros Γ A.
+    apply (@subst_pair_id C hsC Γ A).
+- repeat split.
+  + apply (functor_category_has_homsets C^op HSET has_homsets_HSET).
+  + intros Γ.
+    (* hmm, how to prove this? *)
+    (* apply (functor_isaset _ _ has_homsets_HSET). *)
+    admit.
+  + intros Γ A.
+    use isaset_total2.
+    * repeat (apply impred_isaset; intro); apply setproperty.
+    * intros a; repeat (apply impred_isaset; intro).
+      apply isasetaprop, setproperty.
+Admitted.
+
+End CwF.
