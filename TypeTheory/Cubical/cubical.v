@@ -120,21 +120,21 @@ Context (p_F : _×I ⟹ Id) (e0 e1 : Id ⟹ _×I).
 Context (Hpe0 : nat_trans_comp e0 p_F = nat_trans_id Id).
 Context (Hpe1 : nat_trans_comp e1 p_F = nat_trans_id Id).
 
-Definition ctx_plus (Γ : PreShv C) : PreShv C.
-Proof.
-use mk_functor.
-- mkpair.
-  + intro I.
-    apply (pr1 Γ (F I)).
-  + simpl; intros I J f.
-    apply (# (pr1 Γ) (# F f)).
-- split.
-  + now intros I; simpl; rewrite (functor_id F), (functor_id Γ).
-  + intros I J K f g; simpl in *.
-    unfold compose; simpl.
-    rewrite (functor_comp F).
-    now apply (functor_comp Γ).
-Defined.
+Definition ctx_plus (Γ : PreShv C) : PreShv C :=
+  functor_opp F ∙ Γ.
+(* use mk_functor. *)
+(* - mkpair. *)
+(*   + intro I. *)
+(*     apply (pr1 Γ (F I)). *)
+(*   + simpl; intros I J f. *)
+(*     apply (# (pr1 Γ) (# F f)). *)
+(* - split. *)
+(*   + now intros I; simpl; rewrite (functor_id F), (functor_id Γ). *)
+(*   + intros I J K f g; simpl in *. *)
+(*     unfold compose; simpl. *)
+(*     rewrite (functor_comp F). *)
+(*     now apply (functor_comp Γ). *)
+(* Defined. *)
 
 Local Notation "Γ +" := (ctx_plus Γ) (at level 20).
 
