@@ -16,9 +16,13 @@ Require Import UniMath.CategoryTheory.whiskering.
 Require Import UniMath.CategoryTheory.equivalences.
 Require Import UniMath.CategoryTheory.RightKanExtension.
 Require Import UniMath.CategoryTheory.limits.graphs.limits.
-Require Import UniMath.CategoryTheory.limits.graphs.pullbacks.
+Require Import UniMath.CategoryTheory.limits.pullbacks.
+Require Import UniMath.CategoryTheory.limits.binproducts.
+Require Import UniMath.CategoryTheory.limits.terminal.
+Require Import UniMath.CategoryTheory.LatticeObject.
 Require Import UniMath.CategoryTheory.Presheaf.
 Require Import UniMath.CategoryTheory.ElementsOp.
+Require Import UniMath.CategoryTheory.Monics.
 
 Require Import TypeTheory.Cubical.PresheafSemantics.
 
@@ -28,18 +32,97 @@ Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
 
 Section cubical.
 
-Variables (C : precategory) (hsC : has_homsets C) (F : functor C C).
+Context {C : precategory} (hsC : has_homsets C) (BPC : BinProducts C).
 
-Local Notation "'Id'" := (functor_identity C).
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 50).
+Local Notation "Γ ⊢ A" := (@TermIn _ Γ A) (at level 50).
+Local Notation "A ⦃ s ⦄" := (subst_type hsC A s) (at level 40, format "A ⦃ s ⦄").
+Local Notation "Γ ⋆ A" := (@ctx_ext _ Γ A) (at level 30).
+Local Notation "c '⊗' d" := (BinProductObject _ (BinProducts_PreShv c d)) (at level 30) : cat.
+Local Notation "f '××' g" := (BinProductOfArrows _ _ _ f g) (at level 90) : cat.
+Local Notation "1" := Terminal_PreShv.
 
-Variable (p_F : nat_trans F Id).
-Variable (e0 e1 : nat_trans Id F).
+(* Why is the formatting not working for this notation: *)
+Local Notation "C ⟦ a , b ⟧" := (precategory_morphisms (C:=C) a b) (format "C ⟦ a , b ⟧", at level 50) : cat.
 
-Variable (Γ : PreShv C).
+Let Ω : bounded_latticeob BinProducts_PreShv 1 Ω_PreShv := @Ω_PreShv_bounded_lattice C.
 
-Definition Γplus : PreShv C.
+(* Assume that we have a sublattice of Ω *)
+Context (FF : PreShv C) (i : FF --> Ω_PreShv) (Hi : isMonic i).
+Context (meet_FF : FF ⊗ FF --> FF) (join_FF : FF ⊗ FF --> FF).
+Context (bot_FF : 1 --> FF) (top_FF : 1 --> FF).
+Context (Hmeet_FF : meet_FF · i = (i ×× i) · meet_mor Ω).
+Context (Hjoin_FF : join_FF · i = (i ×× i) · join_mor Ω).
+Context (Hbot_FF : bot_FF · i = bot_mor Ω).
+Context (Htop_FF : top_FF · i = top_mor Ω).
+
+Definition FF_lattice : bounded_latticeob BinProducts_PreShv 1 FF :=
+  sub_bounded_latticeob BinProducts_PreShv Terminal_PreShv Hi Ω Hmeet_FF Hjoin_FF Hbot_FF Htop_FF.
+
+(* Extract the top of the lattice *)
+Definition FF1 {I} : pr1 (pr1 FF I) := pr1 top_FF I tt.
+(* Local Notation "'1_FF'" := FF1. *)
+
+(* Context restriction: Γ, φ |- *)
+Definition ctx_restrict (Γ : PreShv C) (φ : Γ --> FF) : PreShv C.
 Proof.
-mkpair.
+use mk_functor.
+- mkpair.
+  + simpl; intros I.
+    exists (∑ ρ : pr1 ((pr1 Γ) I), pr1 φ I ρ = FF1).
+    abstract (apply isaset_total2; [ apply setproperty | intros ρ; apply isasetaprop, setproperty ]).
+  + simpl; intros I J f ρ.
+    mkpair.
+    * apply (# (pr1 Γ) f (pr1 ρ)).
+    * abstract (
+        etrans; [apply (eqtohomot (nat_trans_ax φ _ _ f) (pr1 ρ))|]; cbn;
+        etrans; [apply maponpaths, (pr2 ρ)|];
+        now apply (!eqtohomot (nat_trans_ax top_FF _ _ f) tt)).
+- split.
+  + intros I; apply funextsec; simpl; intro ρ.
+    apply subtypeEquality; [ intros x; apply setproperty |]; simpl.
+    now rewrite (functor_id Γ).
+  + intros I J K f g; apply funextsec; simpl; intro ρ.
+    apply subtypeEquality; [ intros x; apply setproperty |]; simpl.
+    now rewrite (functor_comp Γ).
+Defined.
+
+Local Notation "Γ , φ" := (ctx_restrict Γ φ) (at level 30, format "Γ , φ").
+
+Definition ι {Γ : PreShv C} (φ : Γ --> FF) : Γ,φ --> Γ.
+Proof.
+use mk_nat_trans.
+- simpl; intros I.
+  apply pr1.
+- intros I J f; apply idpath.
+Defined.
+
+Lemma isMonic_ι (Γ : PreShv C) (φ : Γ --> FF) : isMonic (ι φ).
+Proof.
+intros Δ σ1 σ2 H.
+apply (nat_trans_eq has_homsets_HSET); intro I.
+apply funextsec; intro ρ.
+apply subtypeEquality; [ intros x; apply setproperty |]; simpl.
+apply (eqtohomot (nat_trans_eq_pointwise H I) ρ).
+Qed.
+
+
+(* Now assume that we have a cylinder functor on C *)
+
+Local Notation "'Id'" := (functor_identity _).
+
+Context (F : C ⟶ C).
+
+Notation "_×I" := (F).
+Arguments nat_trans_comp {_ _ _ _ _} _ _.
+
+Context (p_F : _×I ⟹ Id) (e0 e1 : Id ⟹ _×I).
+Context (Hpe0 : nat_trans_comp e0 p_F = nat_trans_id Id).
+Context (Hpe1 : nat_trans_comp e1 p_F = nat_trans_id Id).
+
+Definition ctx_plus (Γ : PreShv C) : PreShv C.
+Proof.
+use mk_functor.
 - mkpair.
   + intro I.
     apply (pr1 Γ (F I)).
@@ -50,19 +133,20 @@ mkpair.
   + intros I J K f g; simpl in *.
     unfold compose; simpl.
     rewrite (functor_comp F).
-    apply (functor_comp Γ).
+    now apply (functor_comp Γ).
 Defined.
 
-Local Notation "'Γ+'" := Γplus.
+Local Notation "Γ +" := (ctx_plus Γ) (at level 20).
 
-Definition p' : nat_trans (pr1 Γ) (pr1 Γ+).
+Definition deg (Γ : PreShv C) : Γ --> Γ+.
+Proof.
 mkpair.
-- simpl; intro I; apply (# (pr1 Γ)  (p_F I)).
+- simpl; intro I; apply (# (pr1 Γ) (p_F I)).
 - intros I J f; simpl in *; rewrite <- !(functor_comp Γ).
   now apply maponpaths, pathsinv0, (nat_trans_ax p_F).
 Defined.
 
-Definition f0 : nat_trans (pr1 Γ+) (pr1 Γ).
+Definition face0 (Γ : PreShv C) : Γ+ --> Γ.
 Proof.
 mkpair.
 - simpl; intro I; apply (# (pr1 Γ) (e0 I)).
@@ -70,7 +154,7 @@ mkpair.
   now apply maponpaths, pathsinv0, (nat_trans_ax e0).
 Defined.
 
-Definition f1 : nat_trans (pr1 Γ+) (pr1 Γ).
+Definition face1 (Γ : PreShv C) : Γ+ --> Γ.
 Proof.
 mkpair.
 - simpl; intro I; apply (# (pr1 Γ) (e1 I)).
@@ -78,71 +162,24 @@ mkpair.
   now apply maponpaths, pathsinv0, (nat_trans_ax e1).
 Defined.
 
-(* Local Notation "'[0]'" := f0. *)
-(* Local Notation "'[1]'" := f1. *)
+Local Notation "'[0]'" := (face0 _).
+Local Notation "'[1]'" := (face1 _).
 
-(* Hypothesis (Hpe0 : e0 • p_F = nat_trans_id Id). *)
-(* Hypothesis (Hpe1 : e1 • p_F = nat_trans_id Id). *)
+Lemma deg_face0 (Γ : PreShv C) : nat_trans_comp (deg Γ) [0] = identity Γ.
+Proof.
+apply (nat_trans_eq has_homsets_HSET); simpl; intro I.
+rewrite <- (functor_id Γ).
+etrans; [eapply pathsinv0, (functor_comp Γ)|].
+now etrans; [apply maponpaths, (nat_trans_eq_pointwise Hpe0 I)|].
+Qed.
 
-(* Lemma pf0 : p • [0] = identity Γ. *)
-(* Proof. *)
-(* apply (nat_trans_eq has_homsets_HSET). *)
-(* simpl; intro I. *)
-(* assert (H := nat_trans_eq_pointwise Hpe0 I). *)
-(* simpl in H. *)
-(* rewrite <- (functor_id Γ). *)
-(* eapply pathscomp0. *)
-(* eapply pathsinv0. *)
-(* eapply (functor_comp Γ). *)
-(* unfold compose; simpl. *)
-(* now rewrite H. *)
-(* Qed. *)
+Lemma deg_face1 (Γ : PreShv C) : nat_trans_comp (deg Γ) [1] = identity Γ.
+Proof.
+apply (nat_trans_eq has_homsets_HSET); simpl; intro I.
+rewrite <- (functor_id Γ).
+etrans; [eapply pathsinv0, (functor_comp Γ)|].
+now etrans; [apply maponpaths, (nat_trans_eq_pointwise Hpe1 I)|].
+Qed.
 
-(* Lemma pf1 : p • [1] = identity Γ. *)
-(* Proof. *)
-(* apply (nat_trans_eq has_homsets_HSET). *)
-(* simpl; intro I. *)
-(* assert (H := nat_trans_eq_pointwise Hpe1 I). *)
-(* simpl in H. *)
-(* rewrite <- (functor_id Γ). *)
-(* eapply pathscomp0. *)
-(* eapply pathsinv0. *)
-(* eapply (functor_comp Γ). *)
-(* unfold compose; simpl. *)
-(* now rewrite H. *)
-(* Qed. *)
-
-(* Section alternative_version. *)
-(* Hypothesis (Hpe0 : p_F • e0 = nat_trans_id F). *)
-(* Hypothesis (Hpe1 : p_F • e1 = nat_trans_id F). *)
-
-(* Lemma pf0 : [0] • p = nat_trans_id Γ+. *)
-(* Proof. *)
-(* apply (nat_trans_eq has_homsets_HSET). *)
-(* simpl; intro I. *)
-(* assert (H := nat_trans_eq_pointwise Hpe0 I). *)
-(* simpl in H. *)
-(* assert (H1 : # Γ (e0 I) ;; # Γ (p_F I) = # Γ (identity (F I))). *)
-(* rewrite <- H. *)
-(* apply pathsinv0. *)
-(* apply (functor_comp Γ). *)
-(* rewrite (functor_id Γ) in H1. *)
-(* apply H1. *)
-(* Qed. *)
-
-(* Lemma pf1 : [1] • p = nat_trans_id Γ+. *)
-(* Proof. *)
-(* apply (nat_trans_eq has_homsets_HSET). *)
-(* simpl; intro I. *)
-(* assert (H := nat_trans_eq_pointwise Hpe1 I). *)
-(* simpl in H. *)
-(* assert (H1 : # Γ (e1 I) ;; # Γ (p_F I) = # Γ (identity (F I))). *)
-(* rewrite <- H. *)
-(* apply pathsinv0. *)
-(* apply (functor_comp Γ). *)
-(* rewrite (functor_id Γ) in H1. *)
-(* apply H1. *)
-(* Qed. *)
-(* End alternative_version. *)
 
 End cubical.
