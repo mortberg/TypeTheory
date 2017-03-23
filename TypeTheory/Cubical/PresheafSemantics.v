@@ -21,6 +21,7 @@ Require Import UniMath.CategoryTheory.Presheaf.
 Require Import UniMath.CategoryTheory.ElementsOp.
 
 Require Import TypeTheory.OtherDefs.CwF_Pitts.
+Require Import TypeTheory.Auxiliary.Auxiliary.
 
 Local Open Scope cat.
 
@@ -167,7 +168,24 @@ use functor_data_eq.
 - intros [c1 c2]; apply idpath.
 - intros [a1 a2] [b1 b2] f; cbn.
   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|].
+(* apply (functor_eq _ _ has_homsets_HSET). *)
+(* use functor_data_eq. *)
+(* - intros c. cbn. unfold get_ob, get_el. apply maponpaths. *)
+(* apply pathsinv0. *)
+(* apply tppr. *)
+(* - *)
+(* intros a b f. *)
+(* induction a as [a1 a2]. *)
+(* induction b as [b1 b2]. *)
+(* cbn. *)
+(* apply maponpaths. *)
+(* apply subtypeEquality; trivial. *)
+(* intros x; apply setproperty. *)
+(* intros [a1 a2] [b1 b2] f; cbn; *)
+(*   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|]. *)
 Qed.
+
+Print subst_type_id.
 
 (* TODO: use different order for composition of substitutions? *)
 (** A(σ1 σ2) = (A σ2) σ1 *)
@@ -246,14 +264,24 @@ Defined.
 
 Local Notation "Γ ⊢ A" := (@TermIn Γ A) (at level 50).
 
+Definition mkTermIn {Γ : PreShv C} (A : Γ ⊢)
+  (u : ∏ (I : C) (ρ : pr1 ((pr1 Γ) I)), pr1 ((pr1 A) (make_ob I ρ)))
+  (Hu : ∏ I J (f : C ⟦ J, I ⟧) (ρ : pr1 ((pr1 Γ) I)),
+        # (pr1 A) (mor_to_el_mor f ρ) (u I ρ) = u J (# (pr1 Γ) f ρ)) : Γ ⊢ A.
+Proof.
+mkpair.
+- exact u.
+- abstract (exact Hu).
+Defined.
+
 (* The last element of the context *)
 Definition q {Γ : PreShv C} {A : Γ ⊢} : Γ ⋆ A ⊢ A⦃p⦄.
 Proof.
-mkpair.
+use mkTermIn.
 + intros I ρ.
   apply (pr2 ρ).
-+ abstract (intros I J f ρ; cbn; apply map_on_two_paths; trivial;
-            now apply cat_of_elems_mor_eq).
++ intros I J f ρ; cbn; apply map_on_two_paths; trivial.
+  now apply cat_of_elems_mor_eq.
 Defined.
 
 Lemma temp {Γ : PreShv C} (A : Γ ⊢) (a : Γ ⊢ A) (J : C) (x y : pr1 (pr1 Γ J)) (e : x = y) :
@@ -265,13 +293,11 @@ Qed.
 (** Given Γ ⊢ a : A and a substitution σ : Δ → Γ we get Δ ⊢ aσ : Aσ *)
 Definition subst_term {Γ Δ : PreShv C} (σ : Δ --> Γ) {A : Γ ⊢} (a : Γ ⊢ A) : Δ ⊢ A⦃σ⦄.
 Proof.
-mkpair.
+use mkTermIn.
 - intros I ρ.
-  simpl in *.
   apply (pr1 a _ (pr1 σ I ρ)).
 - intros I J f ρ.
-  cbn in *.
-  generalize (pr2 a I J f (σ _ ρ)).
+  generalize (pr2 a I J f (pr1 σ _ ρ)).
   set (H := eqtohomot (nat_trans_ax σ I J f) ρ).
   cbn in *.
   intros H2.
@@ -308,8 +334,93 @@ mkpair.
   now apply maponpaths.
 Defined.
 
+Lemma transportf_subst_type0 {Γ Δ : PreShv C} (σ : Δ --> Γ)
+  {A : Γ ⊢} {B : Γ ⊢} (a : Γ ⊢ A) (e : A = B) :  
+    transportf (λ x, Δ ⊢ x) (maponpaths (λ x, subst_type x σ) e)
+               (subst_term σ a) =
+    subst_term σ (transportf TermIn e a).
+Proof.
+now induction e.
+Qed.
+
+(* Lemma moo (Γ : opp_precat_data C ⟶ hset_precategory_data) (I : C) *)
+(*   (ρ : pr1 ((pr1 Γ) I)) (F G : Γ ⊢) (x : pr1 ((pr1 F) (I,,ρ))) (e : G = F) : *)
+(*   transportf (λ x : opp_precat_data (cat_of_elems_data Γ) ⟶ hset_precategory_data, pr1 ((pr1 x) (I,,ρ))) e x = x. *)
+Lemma functor_eq_pointwise (D1 D2 : precategory) (F G : functor D1 D2) (e : F = G) :
+  ∏ x : D1, F x = G x.
+Proof.
+intro x.
+now rewrite e.
+Qed.
+
+Lemma asdf (A : hSet) (a : A) (e : a = a) : e = idpath a.
+Proof.
+apply setproperty.
+Defined.
+
+
+Lemma transportf_subst_type1 {Γ : PreShv C} 
+  {A : Γ ⊢} (a : Γ ⊢ A) : 
+  subst_term 1 a = transportb TermIn (subst_type_id Γ A) a.
+Proof.
+apply transportb_to_transportf.
+apply subtypeEquality.
+(* TODO: state a general equality lemma for elements *)
+intros x.
+repeat (apply impred; intros).
+apply setproperty.
+etrans.
+use pr1_transportf.
+apply funextsec; intro I.
+apply funextsec; intro ρ.
+induction a as [a1 a2].
+rewrite !transportf_forall.
+cbn.
+match goal with |- transportf ?XX ?YY ?ZZ = ?WW => set (X := XX); set (Y := YY) end.
+set (x := a1 I ρ).
+pathvia (transportf (λ x,pr1 ((pr1 x) (make_ob I ρ))) (maponpaths pr1 Y) x).
+now induction Y.
+unfold Y, x.
+clear -I.
+pathvia (transportf (λ x : _ -> hSet ,pr1 (x (make_ob I ρ))) (maponpaths pr1  (maponpaths pr1 (subst_type_id Γ A))) (a1 I ρ)).
+generalize ((maponpaths pr1 (subst_type_id Γ A))) .
+intros p.
+cbn in *.
+now induction p.
+match goal with |- transportf ?XX ?YY ?ZZ = ?WW => set (X := XX); set (Y := YY) end.
+pathvia (transportf (λ x : hSet,pr1 x) (eqtohomot Y (I,,ρ)) (a1 I ρ)).
+now induction Y.
+unfold Y.
+clear -I.
+simpl.
+match goal with |- transportf ?XX ?YY ?ZZ = ?WW => set (X := XX); set (Y := YY) end.
+simpl in Y.
+unfold identity in Y.
+simpl in *.
+set (x := a1 I ρ).
+clearbody x.
+clearbody Y.
+Check (A (I,,ρ)).
+clear -I.
+rewrite (@functtransportf hSet UU pr1 (idfun UU)).
+cbn in *.
+Check (maponpaths pr1 Y).
+Check (pr1 (A (I,,ρ))).
+(* assert (Y = idpath _). *)
+(* Check (A (I,,ρ)). *)
+(* admit. *)
+(* rewrite X0. *)
+(* cbn. *)
+(* trivial. *)
+
+(* pathvia (transportf (λ _,pr1 ((pr1 A) (make_ob I ρ))) (maponpaths pr1 p) x). *)
+(* cbn. *)
+(* admit. *)
+(* now induction p. *)
+Admitted.
+
 Lemma subst_term_id {Γ : PreShv C} {A : Γ ⊢} (a : Γ ⊢ A) :
-  subst_term 1 a = transportb (λ x, Γ ⊢ x) (subst_type_id Γ A) a.
+  subst_term 1 a = transportb TermIn (subst_type_id Γ A) a.
 Proof.
 induction a as [a1 a2].
 apply subtypeEquality.
@@ -320,6 +431,8 @@ apply setproperty.
 cbn.
 apply funextsec; intro I.
 apply funextsec; intro ρ.
+unfold transportb.
+Check pr1_transportf.
 admit.
 Admitted.
 
@@ -435,15 +548,17 @@ Definition TermInSection {Γ : PreShv C} (A : Γ ⊢) : UU :=
 
 Lemma TermIn_to_TermInSection {Γ : PreShv C} (A : Γ ⊢) : TermIn A → TermInSection A.
 Proof.
-intros [a p].
+intros a.
+(* intros [a p]. *)
 mkpair.
-+ use mk_nat_trans.
-  - intros I ρ.
-    apply (ρ,,a I ρ).
-  - intros I J f.
-    apply funextfun; intro ρ; apply pair_path_in2.
-    now rewrite p.
-+ abstract (apply (nat_trans_eq has_homsets_HSET);
+- apply (term_to_subst _ a).
+(* + use mk_nat_trans. *)
+(*   - intros I ρ. *)
+(*     apply (ρ,,a I ρ). *)
+(*   - intros I J f. *)
+(*     apply funextfun; intro ρ; apply pair_path_in2. *)
+(*     now rewrite p. *)
+- abstract (apply (nat_trans_eq has_homsets_HSET);
             now intros I; simpl; apply funextfun).
 Defined.
 
@@ -453,6 +568,13 @@ intros [a pa].
 generalize (subst_term a q).
 now rewrite <- subst_type_comp, pa, subst_type_id.
 Defined.
+
+
+(* s : Γ --> Γ.A
+   σ : Δ --> Γ
+Need 
+Δ --> Δ.A⦃σ⦄
+*)
 
 (* This alternative definition of q is very slow *)
 (* Definition q' {Γ : PreShv C} (A : Γ ⊢) : TermInSection (A⦃@p Γ A⦄). *)
