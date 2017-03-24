@@ -20,12 +20,94 @@ Require Import UniMath.CategoryTheory.limits.graphs.pullbacks.
 Require Import UniMath.CategoryTheory.Presheaf.
 Require Import UniMath.CategoryTheory.ElementsOp.
 
-Require Import TypeTheory.OtherDefs.CwF_Pitts.
 Require Import TypeTheory.Auxiliary.Auxiliary.
 
 Local Open Scope cat.
 
 Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
+
+Lemma transport_mor_funextsec :
+∏ (X : UU) (C : precategory_ob_mor) (F F' : X → C) (H : ∏ x : X, F x = F' x) (x1 x2 : X) 
+(f : C ⟦ F x1, F x2 ⟧),
+transportf (λ x : X → C, C ⟦ x x1, x x2 ⟧) (funextsec _ F F' H) f =
+transportf (λ x : X → C, C ⟦ F' x1, x x2 ⟧) (funextsec _ F F' (λ x : X, H x))
+           (transportf (λ x : X → C, C ⟦ x x1, F x2 ⟧) (funextsec _ F F' (λ x : X, H x)) f).
+Proof.
+intros.
+induction (funextsec _ F F' (λ x : X, H x)).
+apply idpath.
+Qed.
+
+Lemma transport_source_funextsec :
+∏ (X : UU) (C : precategory_ob_mor) (F F' : X → C) (H : ∏ x : X, F x = F' x) (x : X) (c : C) 
+(f : C ⟦ F x, c ⟧),
+transportf (λ x0 : X → C, C ⟦ x0 x, c ⟧) (funextsec _ F F' H) f = transportf (λ x0 : C, C ⟦ x0, c ⟧) (H x) f.
+Proof.
+intros.
+  exact (@transportf_funextfun X (ob C) (λ x0 : C, x0 --> c) F F' H x f).
+Qed.
+
+Lemma transport_target_funextsec :
+∏ (X : UU) (C : precategory_ob_mor) (F F' : X → C) (H : ∏ x : X, F x = F' x) (x : X) (c : C) 
+(f : C ⟦ c, F x ⟧),
+transportf (λ x0 : X → C, C ⟦ c, x0 x ⟧) (funextsec _ F F' H) f = transportf (λ x0 : C, C ⟦ c, x0 ⟧) (H x) f.
+Proof.
+intros.
+  use transportf_funextfun.
+Qed.
+
+Lemma functor_data_eq_sec {C C' : precategory_ob_mor} (F F' : functor_data C C')
+      (H : ∏ (c : C), (pr1 F) c = (pr1 F') c)
+      (H1 : ∏ (C1 C2 : ob C) (f : C1 --> C2),
+            transportf (λ x : C', pr1 F' C1 --> x) (H C2)
+                       (transportf (λ x : C', x --> pr1 F C2) (H C1) (pr2 F C1 C2 f)) =
+            pr2 F' C1 C2 f) : F = F'.
+Proof.
+  use total2_paths_f.
+  - use funextsec. intros c. exact (H c).
+  - use funextsec. intros C1. use funextsec. intros C2. use funextsec. intros f.
+    assert (e : transportf (λ x : C → C', ∏ a b : C, a --> b → x a --> x b)
+                           (funextsec _ (pr1 F) (pr1 F') (λ c : C, H c))
+                           (pr2 F) C1 C2 f =
+                transportf (λ x : C → C', x C1 --> x C2)
+                           (funextsec _ (pr1 F) (pr1 F') (λ c : C, H c))
+                           ((pr2 F) C1 C2 f)).
+    {
+      induction (funextsec _ (pr1 F) (pr1 F') (λ c : C, H c)).
+      apply idpath.
+    }
+    rewrite e. clear e.
+    rewrite transport_mor_funextsec.
+    rewrite transport_source_funextsec. rewrite transport_target_funextsec.
+    exact (H1 C1 C2 f).
+Defined.
+
+Lemma functor_data_eq {C C' : precategory_ob_mor} (F F' : functor_data C C')
+      (H : ∏ (c : C), (pr1 F) c = (pr1 F') c)
+      (H1 : ∏ (C1 C2 : ob C) (f : C1 --> C2),
+            transportf (λ x : C', pr1 F' C1 --> x) (H C2)
+                       (transportf (λ x : C', x --> pr1 F C2) (H C1) (pr2 F C1 C2 f)) =
+            pr2 F' C1 C2 f) : F = F'.
+Proof.
+  use total2_paths_f.
+  - use funextfun. intros c. exact (H c).
+  - use funextsec. intros C1. use funextsec. intros C2. use funextsec. intros f.
+    assert (e : transportf (λ x : C → C', ∏ a b : C, a --> b → x a --> x b)
+                           (funextfun (pr1 F) (pr1 F') (λ c : C, H c))
+                           (pr2 F) C1 C2 f =
+                transportf (λ x : C → C', x C1 --> x C2)
+                           (funextfun (pr1 F) (pr1 F') (λ c : C, H c))
+                           ((pr2 F) C1 C2 f)).
+    {
+      induction (funextfun (pr1 F) (pr1 F') (λ c : C, H c)).
+      apply idpath.
+    }
+    rewrite e. clear e.
+    rewrite transport_mor_funextfun.
+    rewrite transport_source_funextfun. rewrite transport_target_funextfun.
+    exact (H1 C1 C2 f).
+Defined.
+
 
 Section upstream.
 
@@ -164,8 +246,8 @@ Local Notation "A ⦃ s ⦄" := (subst_type A s) (at level 40, format "A ⦃ s �
 Lemma subst_type_id (Γ : PreShv C) (A : Γ ⊢) : A⦃1⦄ = A.
 Proof.
 apply (functor_eq _ _ has_homsets_HSET).
-use functor_data_eq.
-- intros [c1 c2]; apply idpath.
+use functor_data_eq_sec.
+- intros c; apply idpath.
 - intros [a1 a2] [b1 b2] f; cbn.
   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|].
 (* apply (functor_eq _ _ has_homsets_HSET). *)
@@ -183,9 +265,28 @@ use functor_data_eq.
 (* intros x; apply setproperty. *)
 (* intros [a1 a2] [b1 b2] f; cbn; *)
 (*   now apply maponpaths, subtypeEquality; [intros x; apply setproperty|]. *)
+Defined.
+
+Search total2 paths.
+
+Lemma test (A : UU) (B : A → UU) (s s' : ∑ x : A, B x) (p : pr1 s = pr1 s')
+  (p2 : transportf B p (pr2 s) = pr2 s') :
+  maponpaths pr1 (total2_paths_f p p2) = p.
+Proof.
+Search base_paths.
+apply base_total2_paths.
 Qed.
 
-Print subst_type_id.
+
+Lemma HHHHH (Γ : PreShv C) (A : Γ ⊢) : maponpaths pr1 (maponpaths pr1 (subst_type_id Γ A)) =
+  funextsec _ (pr1 (pr1 (A⦃1⦄))) (pr1 (pr1 A)) (λ c : (∫ Γ)^op, idpath (pr1 (pr1 A) c)).
+Proof.
+unfold subst_type_id.
+unfold functor_eq.
+rewrite test.
+unfold functor_data_eq_sec.
+now rewrite test.
+Qed.
 
 (* TODO: use different order for composition of substitutions? *)
 (** A(σ1 σ2) = (A σ2) σ1 *)
@@ -361,7 +462,7 @@ Defined.
 
 Lemma transportf_subst_type1 {Γ : PreShv C} 
   {A : Γ ⊢} (a : Γ ⊢ A) : 
-  subst_term 1 a = transportb TermIn (subst_type_id Γ A) a.
+  subst_term 1 a = transportb (λ x, Γ ⊢ x) (subst_type_id Γ A) a.
 Proof.
 apply transportb_to_transportf.
 apply subtypeEquality.
@@ -381,60 +482,25 @@ set (x := a1 I ρ).
 pathvia (transportf (λ x,pr1 ((pr1 x) (make_ob I ρ))) (maponpaths pr1 Y) x).
 now induction Y.
 unfold Y, x.
-clear -I.
 pathvia (transportf (λ x : _ -> hSet ,pr1 (x (make_ob I ρ))) (maponpaths pr1  (maponpaths pr1 (subst_type_id Γ A))) (a1 I ρ)).
 generalize ((maponpaths pr1 (subst_type_id Γ A))) .
 intros p.
 cbn in *.
 now induction p.
+clear -I.
 match goal with |- transportf ?XX ?YY ?ZZ = ?WW => set (X := XX); set (Y := YY) end.
 pathvia (transportf (λ x : hSet,pr1 x) (eqtohomot Y (I,,ρ)) (a1 I ρ)).
 now induction Y.
 unfold Y.
-clear -I.
-simpl.
-match goal with |- transportf ?XX ?YY ?ZZ = ?WW => set (X := XX); set (Y := YY) end.
-simpl in Y.
-unfold identity in Y.
-simpl in *.
-set (x := a1 I ρ).
-clearbody x.
-clearbody Y.
-Check (A (I,,ρ)).
-clear -I.
-rewrite (@functtransportf hSet UU pr1 (idfun UU)).
-cbn in *.
-Check (maponpaths pr1 Y).
-Check (pr1 (A (I,,ρ))).
-(* assert (Y = idpath _). *)
-(* Check (A (I,,ρ)). *)
-(* admit. *)
-(* rewrite X0. *)
-(* cbn. *)
-(* trivial. *)
-
-(* pathvia (transportf (λ _,pr1 ((pr1 A) (make_ob I ρ))) (maponpaths pr1 p) x). *)
-(* cbn. *)
-(* admit. *)
-(* now induction p. *)
-Admitted.
-
+rewrite HHHHH.
+rewrite toforallpaths_funextsec.
+now rewrite idpath_transportf.
+Qed.
 Lemma subst_term_id {Γ : PreShv C} {A : Γ ⊢} (a : Γ ⊢ A) :
   subst_term 1 a = transportb TermIn (subst_type_id Γ A) a.
 Proof.
-induction a as [a1 a2].
-apply subtypeEquality.
-(* TODO: state a general equality lemma for elements *)
-intros x.
-repeat (apply impred; intros).
-apply setproperty.
-cbn.
-apply funextsec; intro I.
-apply funextsec; intro ρ.
-unfold transportb.
-Check pr1_transportf.
-admit.
-Admitted.
+apply transportf_subst_type1.
+Qed.
 
 Lemma subst_term_comp {Γ Δ Θ : PreShv C} (σ1 : Θ --> Δ) (σ2 : Δ --> Γ) {A : Γ ⊢} (a : Γ ⊢ A) :
   subst_term (σ1 · σ2) a =
@@ -598,6 +664,8 @@ End types.
 
 
 Section CwF.
+
+Require Import TypeTheory.OtherDefs.CwF_Pitts.
 
 Context (C : precategory) (hsC : has_homsets C).
 
