@@ -255,7 +255,7 @@ set (H3 := nat_trans_eq_pointwise Hpe₀ I).
 set (H4 := nat_trans_eq_pointwise Hpe₀ J).
 cbn in *.
 rewrite H1 in H.
-generalize (cancel_postcomposition _ _ _ _ _ _ (p_F I) H); cbn.
+generalize (cancel_postcomposition _ _ (p_F I) H); cbn.
 now rewrite <-!assoc, H2, H3, assoc, H4, id_left, id_right.
 Qed.
 
@@ -268,7 +268,7 @@ set (H3 := nat_trans_eq_pointwise Hpe₁ I).
 set (H4 := nat_trans_eq_pointwise Hpe₁ J).
 cbn in *.
 rewrite H1 in H.
-generalize (cancel_postcomposition _ _ _ _ _ _ (p_F I) H); cbn.
+generalize (cancel_postcomposition _ _ (p_F I) H); cbn.
 now rewrite <-!assoc, H2, H3, assoc, H4, id_left, id_right.
 Qed.
 
@@ -573,28 +573,29 @@ unfold transportb.
 rewrite test.
 Check (subst_term hsC (ι · e₁_PreShv I) (pr1 f I ρ φ u)).
 Check (subst_term hsC (u_subst φ · ι) (pr1 f I ρ φ u)).
+admit.
 
-Check (e1 = e2).
-Check transportf.
-rewrite <- Hf.
-apply subtypeEquality.
-intros x; repeat (apply impred; intro); apply setproperty.
-simpl.
-apply funextsec; intro J.
-apply funextsec; intro ρ'.
-unfold yoneda_objects_ob in *.
+(* Check (e1 = e2). *)
+(* Check transportf. *)
+(* rewrite <- Hf. *)
+(* apply subtypeEquality. *)
+(* intros x; repeat (apply impred; intro); apply setproperty. *)
+(* simpl. *)
+(* apply funextsec; intro J. *)
+(* apply funextsec; intro ρ'. *)
+(* unfold yoneda_objects_ob in *. *)
 
 
-induction ρ' as [x1 x2].
-simpl.
-induction eq'.
-rewrite transportf_total2.
-unfold subst_term.
-rewrite functor_comp.
-cbn.
+(* induction ρ' as [x1 x2]. *)
+(* simpl. *)
+(* induction eq'. *)
+(* rewrite transportf_total2. *)
+(* unfold subst_term. *)
+(* rewrite functor_comp. *)
+(* cbn. *)
 
-srewrite transportf_total2.
-
+(* srewrite transportf_total2. *)
+Admitted.
 
 Definition fill_op_from_comp_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄)
