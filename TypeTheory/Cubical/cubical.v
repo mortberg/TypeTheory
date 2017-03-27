@@ -97,7 +97,7 @@ Local Notation "1" := Terminal_PreShv.
 Lemma subst_term_comp' {Γ Δ Θ : PreShv C} (σ1 : Θ --> Δ) (σ2 : Δ --> Γ)
   {A : Γ ⊢} (a : Γ ⊢ A) :
   subst_term _ σ1 (subst_term hsC σ2 a) =
-  transportf (λ x, Θ ⊢ x) (subst_type_comp _ _ _ _ σ1 σ2 A) (subst_term _ (σ1 · σ2) a).
+  transportf (λ x, Θ ⊢ x) (subst_type_comp _ σ1 σ2 A) (subst_term _ (σ1 · σ2) a).
 Proof.
 apply pathsinv0.
 apply transportf_to_transportb.
@@ -565,12 +565,12 @@ rewrite <- Hf.
 rewrite !subst_term_comp'.
 rewrite Hf.
 rewrite test.
-set (e1 := subst_type_comp hsC (yo (I +)) (yo I) (yo I,φ) ι (e₁_PreShv I) (A⦃ρ : yo (I+) --> _⦄)).
-set (e2 := subst_type_comp hsC (yo (I +)) (box I φ) (yo I,φ) (u_subst φ) ι (A⦃ρ : yo(I+) --> _⦄) @
-     eq).
-apply transportf_to_transportb.
-unfold transportb.
-rewrite test.
+(* set (e1 := subst_type_comp hsC (yo (I +)) (yo I) (yo I,φ) ι (e₁_PreShv I) (A⦃ρ : yo (I+) --> _⦄)). *)
+(* set (e2 := subst_type_comp hsC (yo (I +)) (box I φ) (yo I,φ) (u_subst φ) ι (A⦃ρ : yo(I+) --> _⦄) @ *)
+(*      eq). *)
+(* apply transportf_to_transportb. *)
+(* unfold transportb. *)
+(* rewrite test. *)
 Check (subst_term hsC (ι · e₁_PreShv I) (pr1 f I ρ φ u)).
 Check (subst_term hsC (u_subst φ · ι) (pr1 f I ρ φ u)).
 admit.
