@@ -3,7 +3,7 @@ Require Import UniMath.Foundations.PartD.
 Require Import UniMath.Foundations.Propositions.
 Require Import UniMath.Foundations.Sets.
 
-(* Require Import UniMath.MoreFoundations.Tactics. *)
+Require Import UniMath.MoreFoundations.Tactics.
 
 Require Import UniMath.CategoryTheory.total2_paths.
 Require Import UniMath.CategoryTheory.precategories.
@@ -459,14 +459,29 @@ Qed.
 Lemma eq {Γ : PreShv C} {A : Γ ⊢} {I : C} {ρ : yo (I+) --> Γ} {φ : yo I --> FF} :
   ((A⦃ρ⦄)⦃ι⦄)⦃u_subst φ⦄ = ((A⦃ρ⦄)⦃e₁_PreShv I⦄)⦃ι⦄.
 Proof.
-now rewrite <- !subst_type_comp, <- u_subst_eq.
-Qed.
+apply (functor_eq _ _ has_homsets_HSET).
+use functor_data_eq.
+- intros c; apply idpath.
+- intros a b f.
+simpl.
+rewrite !idpath_transportf.
+apply maponpaths.
+  now apply subtypeEquality; [intros x; apply setproperty|].
+Defined.
 
-Lemma eq' {Γ : PreShv C} {A : Γ ⊢} {I : C} {ρ : yo (I+) --> Γ} {φ : yo I --> FF} :
-  yo I,φ ⊢ ((A⦃ρ⦄)⦃ι⦄)⦃u_subst φ⦄ = yo I,φ ⊢ ((A⦃ρ⦄)⦃e₁_PreShv I⦄)⦃ι⦄.
+Lemma base_paths_eq {Γ : PreShv C} {A : Γ ⊢} {I : C} {ρ : yo (I+) --> Γ} {φ : yo I --> FF} :
+  base_paths _ _ (base_paths _ _ (@eq Γ A I ρ φ)) =
+  funextsec _ _ _ (λ c, idpath _).
 Proof.
-now rewrite eq.
-Qed.
+unfold eq, functor_eq, functor_data_eq.
+now rewrite !base_total2_paths.
+Admitted.
+
+(* Lemma eq' {Γ : PreShv C} {A : Γ ⊢} {I : C} {ρ : yo (I+) --> Γ} {φ : yo I --> FF} : *)
+(*   yo I,φ ⊢ ((A⦃ρ⦄)⦃ι⦄)⦃u_subst φ⦄ = yo I,φ ⊢ ((A⦃ρ⦄)⦃e₁_PreShv I⦄)⦃ι⦄. *)
+(* Proof. *)
+(* now rewrite eq. *)
+(* Qed. *)
 
 Definition comp_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
   {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ρ⦄⦃ι⦄} (c : comp_op ρ φ u) : UU.
@@ -483,14 +498,15 @@ Defined.
 (* Uniformity *)
 Definition comp_op_uniform {Γ : PreShv C} {A : Γ ⊢}
   {I : C} (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄)
-  (c : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), comp_op ρ φ u) : UU.
+  (c : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), comp_op ρ φ u) :
+  ∏ (J : C) (f : J --> I), UU.
 Proof.
-assert (J : C). admit.
-assert (f : J --> I). admit.
-set (fplus := # F f).
-set (yo_fplus := # yo fplus).
+intros.
 set (yo_f := # yo f).
 set (x1 := subst_term hsC yo_f (c I ρ φ u)).
+
+set (fplus := # F f).
+set (yo_fplus := # yo fplus).
 set (ρ' := yo_fplus · ρ).
 set (φ' := yo_f · φ).
 set (u' := subst_term hsC (box_subst f φ) u).
@@ -502,10 +518,11 @@ admit.
 apply (transportf (λ x, box J φ' ⊢ A⦃x⦄) H u').
 set (x2 := c J ρ' φ' u'').
 unfold comp_op in *.
-rewrite <- subst_type_comp in x1.
-assert (H2 : e₁_PreShv J · ρ' = yo_f · (e₁_PreShv I · ρ)).
+rewrite <- !subst_type_comp in x1.
+assert (H2 : e₁_PreShv J · ρ' = yo_f · e₁_PreShv I · ρ).
 admit.
-(* apply (x1 = transportf (λ x, yo J ⊢ A⦃x⦄) H2 x2). *)
+rewrite <- subst_type_comp in x2.
+apply (x1 = transportf (λ x, yo J ⊢ A⦃x⦄) H2 x2).
 Admitted.
 
 Definition comp_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
@@ -552,50 +569,36 @@ induction e.
 now induction e'.
 Qed.
 
+Require Import TypeTheory.Auxiliary.Auxiliary.
+
 Definition comp_struct_from_fill_struct {Γ : PreShv C} {A : Γ ⊢} :
   fill_struct A → comp_struct A.
 Proof.
-intro f; mkpair; intros I ρ φ u.
-- apply (comp_op_from_fill_op ρ φ u (pr1 f I ρ φ u)).
-- unfold comp_op_face.
-unfold comp_op_from_fill_op.
-set (Hf := pr2 f I ρ φ u).
-unfold fill_op_face in Hf.
-rewrite <- Hf.
-rewrite !subst_term_comp'.
-rewrite Hf.
-rewrite test.
-(* set (e1 := subst_type_comp hsC (yo (I +)) (yo I) (yo I,φ) ι (e₁_PreShv I) (A⦃ρ : yo (I+) --> _⦄)). *)
-(* set (e2 := subst_type_comp hsC (yo (I +)) (box I φ) (yo I,φ) (u_subst φ) ι (A⦃ρ : yo(I+) --> _⦄) @ *)
-(*      eq). *)
-(* apply transportf_to_transportb. *)
-(* unfold transportb. *)
-(* rewrite test. *)
-Check (subst_term hsC (ι · e₁_PreShv I) (pr1 f I ρ φ u)).
-Check (subst_term hsC (u_subst φ · ι) (pr1 f I ρ φ u)).
-admit.
-
-(* Check (e1 = e2). *)
-(* Check transportf. *)
-(* rewrite <- Hf. *)
-(* apply subtypeEquality. *)
-(* intros x; repeat (apply impred; intro); apply setproperty. *)
-(* simpl. *)
-(* apply funextsec; intro J. *)
-(* apply funextsec; intro ρ'. *)
-(* unfold yoneda_objects_ob in *. *)
-
-
-(* induction ρ' as [x1 x2]. *)
-(* simpl. *)
-(* induction eq'. *)
-(* rewrite transportf_total2. *)
-(* unfold subst_term. *)
-(* rewrite functor_comp. *)
-(* cbn. *)
-
-(* srewrite transportf_total2. *)
-Admitted.
+intros [f1 f2]; mkpair; intros I ρ φ u.
+- apply (comp_op_from_fill_op ρ φ u (f1 I ρ φ u)).
+- unfold comp_op_face, comp_op_from_fill_op.
+apply pathsinv0, TermIn_eq.
+etrans; [use pr1_transportf|].
+apply funextsec; intro J; apply funextsec; intro ρ'.
+rewrite !transportf_forall, transportf_TypeIn.
+rewrite (@base_paths_eq Γ A I ρ φ).
+rewrite toforallpaths_funextsec, idpath_transportf.
+generalize (f2 I ρ φ u).
+Search subst_term.
+unfold fill_op_face.
+intros H.
+cbn.
+generalize (eqtohomot (eqtohomot (maponpaths pr1 H) J) ( (pr1 ρ';; e₁ I,,
+     maponpaths _
+       (pathsdirprod (u_subst_subproof I φ J ρ')
+          (idpath _)) @
+     eqtohomot
+       (nat_trans_eq_pointwise
+          (join_mor_top_mor BinProducts_PreShv 1 FF_lattice) J)
+       (pr1 (δ₀ I) J (pr1 ρ';; e₁ I))))).
+cbn.
+apply pathsinv0.
+Qed.
 
 Definition fill_op_from_comp_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄)
