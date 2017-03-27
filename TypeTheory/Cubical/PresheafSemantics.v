@@ -17,7 +17,7 @@ Require Import UniMath.CategoryTheory.whiskering.
 Require Import UniMath.CategoryTheory.equivalences.
 Require Import UniMath.CategoryTheory.RightKanExtension.
 Require Import UniMath.CategoryTheory.limits.graphs.limits.
-Require Import UniMath.CategoryTheory.limits.graphs.pullbacks.
+Require Import UniMath.CategoryTheory.limits.pullbacks.
 Require Import UniMath.CategoryTheory.Presheaf.
 Require Import UniMath.CategoryTheory.ElementsOp.
 
@@ -58,8 +58,7 @@ Lemma transportf_to_transportb (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px 
   px = transportb P e py -> transportf P e px = py.
 Proof.
 intros H.
-rewrite H.
-apply transportfbinv.
+now rewrite H; apply transportfbinv.
 Qed.
 
 Lemma transportb_to_transportf (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
@@ -329,7 +328,7 @@ Proof.
 now induction e.
 Qed.
 
-Lemma subst_term_prf {Γ Δ : PreShv C} (σ : Δ --> Γ) (A : Γ ⊢) (a : Γ ⊢ A) 
+Lemma subst_term_prf {Γ Δ : PreShv C} (σ : Δ --> Γ) (A : Γ ⊢) (a : Γ ⊢ A)
   (I J : C) (f : C ⟦ J, I ⟧) (ρ : pr1 ((pr1 Δ) I)) :
   # (pr1 (A⦃σ⦄)) (mor_to_el_mor f ρ) (pr1 a I (pr1 σ I ρ)) =
   pr1 a J (pr1 σ J (# (pr1 Δ) f ρ)).
@@ -369,7 +368,7 @@ Qed.
 
 (* This lemma is not very useful? *)
 Lemma transportf_subst_type0 {Γ Δ : PreShv C} (σ : Δ --> Γ)
-  {A : Γ ⊢} {B : Γ ⊢} (a : Γ ⊢ A) (e : A = B) :  
+  {A : Γ ⊢} {B : Γ ⊢} (a : Γ ⊢ A) (e : A = B) :
     transportf (λ x, Δ ⊢ x) (maponpaths (λ x, subst_type x σ) e)
                (subst_term σ a) =
     subst_term σ (transportf TermIn e a).
@@ -474,15 +473,16 @@ rewrite !transportf_forall, transportf_TypeIn.
 now rewrite (base_paths_subst_type_pair_p σ a), toforallpaths_funextsec, idpath_transportf.
 Qed.
 
-Lemma subst_pair_subst {Γ Δ Θ : PreShv C} (σ1 : Δ --> Γ) (σ2 : Θ --> Δ)
-  {A : Γ ⊢} (a : Δ ⊢ A⦃σ1⦄) : 
-  σ2 · subst_pair σ1 a =
-  subst_pair (σ2 · σ1) (transportf (λ x : Θ ⊢, Θ ⊢ x) (!subst_type_comp σ2 σ1 A) (subst_term σ2 a)).
-Proof.
-apply (nat_trans_eq has_homsets_HSET); simpl; intros I.
-apply funextsec; intro ρ.
-apply pair_path_in2, pathsinv0.
-Admitted.
+(* TODO: prove this *)
+(* Lemma subst_pair_subst {Γ Δ Θ : PreShv C} (σ1 : Δ --> Γ) (σ2 : Θ --> Δ) *)
+(*   {A : Γ ⊢} (a : Δ ⊢ A⦃σ1⦄) : *)
+(*   σ2 · subst_pair σ1 a = *)
+(*   subst_pair (σ2 · σ1) (transportf (λ x : Θ ⊢, Θ ⊢ x) (!subst_type_comp σ2 σ1 A) (subst_term σ2 a)). *)
+(* Proof. *)
+(* apply (nat_trans_eq has_homsets_HSET); simpl; intros I. *)
+(* apply funextsec; intro ρ. *)
+(* apply pair_path_in2, pathsinv0. *)
+(* Admitted. *)
 
 (* (p,q) = 1 *)
 Lemma subst_pair_id {Γ : PreShv C} {A : Γ ⊢} : subst_pair (A:=A) p q = 1.
@@ -530,7 +530,95 @@ Defined.
 (* (* Defined. *) *)
 (* Admitted. *)
 
+
+(** Various results for instantiating TypeCat  *)
+
+Definition p_gen {Γ Δ : PreShv C} {A : Δ ⊢} (σ : Δ --> Γ) : Δ ⋆ A --> Γ.
+Proof.
+use mk_nat_trans.
+- intros I X.
+  apply (pr1 σ _ (pr1 X)).
+- intros I J f; apply funextsec; intro ρ.
+  apply (eqtohomot (nat_trans_ax σ I J f) (pr1 ρ)).
+Defined.
+
+Definition q_gen {Γ Δ : PreShv C} {A : Γ ⊢} (σ : Δ --> Γ) : (Δ ⋆ (A⦃σ⦄)) ⊢ A⦃p_gen σ⦄.
+Proof.
+use mkTermIn.
+- intros I ρ.
+  apply (pr2 ρ).
+- intros I J f ρ; cbn.
+  now apply map_on_two_paths; [apply cat_of_elems_mor_eq|].
+Defined.
+
+Definition q_gen_mor {Γ Δ : PreShv C} (A : Γ ⊢) (σ : Δ --> Γ) : Δ ⋆ (A⦃σ⦄) --> Γ ⋆ A :=
+  subst_pair (p_gen σ) (q_gen σ).
+
+Lemma q_gen_mor_p {Γ Δ : PreShv C} (A : Γ ⊢) (σ : Δ --> Γ) :
+  q_gen_mor A σ · p = p · σ.
+Proof.
+apply (nat_trans_eq has_homsets_HSET); intro I.
+now apply funextsec.
+Qed.
+
+Lemma isPullback_q_gen_mor {Γ Δ : PreShv C} (A : Γ ⊢) (σ : Δ --> Γ) :
+  isPullback _ _ _ _ (q_gen_mor_p A σ).
+Proof.
+use pb_if_pointwise_pb.
+intros I.
+use isPullback_HSET.
+intros a b eq.
+use unique_exists.
+- cbn in *.
+  exists b.
+  apply (transportf (λ x, pr1 (A (make_ob I x))) eq (pr2 a)).
+- split; trivial; simpl.
+  use total2_paths_f.
+  + apply (!eq).
+  + now cbn; rewrite transport_f_f, pathsinv0r, idpath_transportf.
+- intros ρ.
+  apply isapropdirprod, setproperty.
+  assert (H : isaset (pr1 (pr1 (Γ ⋆ A) I))).
+  { apply setproperty. }
+  apply H.
+- simpl; intros [x1 x2] [h1 h2].
+  use total2_paths_f.
+  + apply h2.
+  + induction h2; induction h1; simpl.
+    assert (H : eq = idpath _).
+    { apply setproperty. }
+    now rewrite H, !idpath_transportf.
+Defined.
+
 End types.
+
+
+Section TypeCat.
+
+Require Import TypeTheory.ALV1.TypeCat.
+
+Context (C : precategory) (hsC : has_homsets C).
+
+Local Notation "Γ ⊢" := (PreShv (∫ Γ)) (at level 50).
+Local Notation "Γ ⊢ A" := (@TermIn _ Γ A) (at level 50).
+Local Notation "A ⦃ s ⦄" := (subst_type hsC A s) (at level 40, format "A ⦃ s ⦄").
+Local Notation "Γ ⋆ A" := (@ctx_ext _ Γ A) (at level 30).
+
+Definition PreShv_TypeCat : type_cat_struct (PreShv C).
+Proof.
+mkpair.
+- exists (λ Γ, Γ ⊢).
+  exists (λ Γ A, Γ ⋆ A).
+  intros Γ A Δ σ.
+  exact (A⦃σ⦄).
+- exists (λ Γ A, @p _ Γ A).
+  exists (λ Γ A Δ σ, q_gen_mor hsC A σ).
+  exists (λ Γ A Δ σ, q_gen_mor_p hsC A σ).
+  intros Γ A Δ σ.
+  exact (isPullback_q_gen_mor hsC A σ).
+Defined.
+
+End TypeCat.
 
 
 Section CwF.
@@ -600,17 +688,16 @@ mkpair.
     pathvia (transportf (λ x, Δ ⊢ x)
             (subst_type_pair_p hsC σ a) (subst_term hsC (subst_pair hsC σ a) (@q _ hsC _ A))).
     admit. (* why is this stated so complicated? *)
-    apply subst_pair_q.    
+    apply subst_pair_q.
   + intros Γ A Δ Θ σ1 σ2 a.
-    exact (subst_pair_subst hsC σ1 σ2 a).
+    admit. (* haven't proved yet *)
+    (* exact (subst_pair_subst hsC σ1 σ2 a). *)
   + intros Γ A.
     apply (@subst_pair_id C hsC Γ A).
 - repeat split.
   + apply (functor_category_has_homsets C^op HSET has_homsets_HSET).
   + intros Γ.
-    (* hmm, how to prove this? *)
-    (* apply (functor_isaset _ _ has_homsets_HSET). *)
-    admit.
+    admit. (* this is not provable! *)
   + intros Γ A.
     use isaset_total2.
     * repeat (apply impred_isaset; intro); apply setproperty.
