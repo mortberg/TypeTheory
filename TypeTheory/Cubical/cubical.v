@@ -29,6 +29,16 @@ Require Import TypeTheory.Cubical.PresheafSemantics.
 
 Local Open Scope cat.
 
+Lemma nat_trans_eq {C C' : precategory_data} (hs: has_homsets C')
+  (F F' : functor_data C C')(a a' : nat_trans F F'):
+  (∏ x, a x = a' x) -> a = a'.
+Proof.
+  intro H.
+  assert (H' : pr1 a = pr1 a').
+  { now apply funextsec. }
+  apply (total2_paths_f H'), proofirrelevance, isaprop_is_nat_trans, hs.
+Defined.
+
 Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
 
 Section lattice_prelim.
@@ -457,11 +467,205 @@ use mk_nat_trans.
   exists (pr1 ρ').
   apply box_subst_prf.
 - intros K L g.
-apply funextsec; intro ρ''.
-apply subtypeEquality; trivial.
-intros x.
-apply setproperty.
+  apply funextsec; intro ρ''.
+  apply subtypeEquality; trivial; intros x; apply setproperty.
 Defined.
+
+(* Fibration approach *)
+Section try3.
+
+Definition fill_op {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) : UU := yo (I+) --> X.
+
+(* fill_op makes both triangles commute *)
+Definition fill_op_comm {X Y α I φ} {u : box I φ --> X} {v : yo (I+) --> Y}
+  {H : u · α = ι · v} (fill : fill_op H) : UU :=
+    (u = ι · fill) × (fill · α = v).
+
+Local Notation "a --> b" := (precategory_morphisms a b).
+
+Lemma fill_op_uniform_prf {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v)
+  {J} (f : J --> I)  : box_subst f φ · u · α = ι · (# yo (# F f) · v).
+Proof.
+rewrite <- assoc, H.
+apply (nat_trans_eq has_homsets_HSET); intros K.
+now apply funextsec.
+Qed.
+
+Definition fill_op_uniform {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v)
+  (fill : ∏ {X Y} {α : X --> Y} I φ (u : box I φ --> X) v (H : u · α = ι · v), fill_op H)
+  {J} (f : J --> I) : UU :=
+    # yo (# F f) · fill I φ u v H =
+    fill J (# yo f · φ) (box_subst f φ · u) (# yo (# F f) · v) (fill_op_uniform_prf H f).
+
+
+Definition comp_op {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) : UU := yo (I) --> X.
+
+Definition comp_op_comm {X Y α I φ} {u : box I φ --> X} {v : yo (I+) --> Y}
+  (H : u · α = ι · v) (comp : comp_op H) : UU :=
+     (ι · comp = u_subst φ · u) × (comp · α = e₁_PreShv I · v).
+
+Definition comp_op_uniform {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v)
+  (comp : ∏ {X Y} {α : X --> Y} I φ (u : box I φ --> X) v (H : u · α = ι · v), comp_op H)
+  {J} (f : J --> I) : UU :=
+    # yo f · comp I φ u v H = 
+    comp J (# yo f · φ) (box_subst f φ · u) (# yo (# F f) · v) (fill_op_uniform_prf H f).
+
+Definition comp_op_from_fill_op {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) (f : fill_op H) : comp_op H := 
+    e₁_PreShv I · f.
+
+
+Lemma comp_op_from_fill_op_comm {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) (f : fill_op H) 
+  (Hf : fill_op_comm f) : comp_op_comm _ (comp_op_from_fill_op _ f).
+Proof.
+unfold comp_op_from_fill_op, comp_op_comm.
+rewrite (pr1 Hf), <- (pr2 Hf).
+split; apply (nat_trans_eq (has_homsets_HSET)); intros J;
+now apply funextsec; intro ρ'.
+Qed.
+
+Lemma comp_op_from_fill_op_uniform {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v)
+  (fill : ∏ (X Y : PreShv C) {α : X --> Y} {I : C} {φ : yo I --> FF} (u : box I φ --> X)
+            (v : yo (I+) --> Y) (H : u · α = ι · v), fill_op H)
+  {J} (f : J --> I) (Hf : fill_op_uniform H fill f) : 
+    comp_op_uniform H (λ (X Y : PreShv C) (α : X --> Y) 
+                         (I : C) (φ : yo I --> FF) (u : box I φ --> X) (v : yo (I +) --> Y)
+                         (H : u · α = ι · v), comp_op_from_fill_op H (fill X Y u v H)) f.
+Proof.
+unfold comp_op_from_fill_op, comp_op_uniform.
+unfold fill_op_uniform in Hf.
+rewrite <-Hf.
+apply (nat_trans_eq (has_homsets_HSET)); intros K.
+apply funextsec; intro ρ'; cbn.
+apply maponpaths; unfold yoneda_morphisms_data.
+rewrite <- !assoc.
+now apply maponpaths, (nat_trans_ax e₁).
+Qed.
+
+End try3.
+
+(* Attempt to transport along substitutions instead, didn't make things better *)
+Section try2.
+
+(* Maybe we can define a version of subst_term that takes 
+   
+σ1 : Δ --> Γ
+a : Δ ⊢ A⦃σ1⦄
+σ2 : Θ --> Δ
+
+and gives
+
+a⦃σ2⦄ : Θ ⊢ A⦃σ2 · σ1⦄
+
+and always start with a : Γ ⊢ A⦃1⦄
+
+This way all of the transports will be on λ x, Γ ⊢ A⦃x⦄ instead
+
+*)
+Definition subst_term' {Γ Δ Θ : PreShv C} {σ1 : Δ --> Γ} (σ2 : Θ --> Δ)
+  {A : Γ ⊢} (a : Δ ⊢ A⦃σ1⦄) : Θ ⊢ A⦃σ2 · σ1⦄ :=
+ transportf (λ x, Θ ⊢ x) (!subst_type_comp hsC σ2 σ1 A) (subst_term hsC σ2 a).
+
+(* Composition operation *)
+Definition comp_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+  (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄) : UU :=
+    yo I ⊢ A⦃e₁_PreShv I · ρ⦄.
+
+Definition comp_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
+  {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ι · ρ⦄}
+  (c : comp_op ρ φ u) : UU.
+Proof.
+set (x1 := subst_term' (@ι _ φ) c).
+set (x2 := subst_term' (u_subst φ) u).
+assert (eq : u_subst φ · (ι · ρ) = ι · (e₁_PreShv I · ρ)).
+{ now apply (nat_trans_eq has_homsets_HSET); intros J; apply funextsec. }
+(* Maybe we can split the equality? *)
+(* use total2. *)
+(* apply (pr1 x1 = pr1 x2). *)
+(* intros H. *)
+(* Check (pr2 (transportf (λ x, yo I,φ ⊢ A⦃x⦄) eq x2)). *)
+(* Check (pr2 x1 = pr2 (transportf (λ x, yo I,φ ⊢ A⦃x⦄) eq x2)). *)
+apply (x1 = transportf (λ x, yo I,φ ⊢ A⦃x⦄) eq x2).
+Defined.
+
+Definition comp_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
+  ∑ (c : ∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), comp_op ρ φ u),
+  (∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄),
+     comp_op_face (c _ ρ φ u)).
+  (* × *)
+  (* (∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄) J (f : J --> I), *)
+  (*    comp_op_uniform ρ φ u c J f). *)
+
+
+(* Filling operation *)
+Definition fill_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+  (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄) : UU :=
+    yo (I+) ⊢ A⦃ρ⦄.
+
+Definition fill_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
+  {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ι · ρ⦄} (f : fill_op ρ φ u) : UU :=
+    subst_term' (@ι _ (p_PreShv I · φ ∨ δ₀ I)) f = u.
+
+Definition fill_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
+  ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), fill_op ρ φ u),
+  ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄),
+     fill_op_face (f _ ρ φ u).
+
+
+Definition comp_op_from_fill_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+  (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄)
+  (f : fill_op ρ φ u) : comp_op ρ φ u := subst_term' (e₁_PreShv I) f.
+
+Lemma transportf_subst_TypeIn (Γ Δ : PreShv C) (σ1 σ2 : Δ --> Γ) (eq : σ1 = σ2)
+  (A : Γ ⊢) (I : C) (ρ : pr1 (pr1 Δ I)) (x : pr1 (pr1 (A⦃σ1⦄) (make_ob I ρ))) : 
+  transportf (λ x, pr1 (pr1 ((pr1 (A⦃x⦄))) (make_ob I ρ))) eq x =
+  transportf (λ x, pr1 (pr1 A (make_ob I x))) (eqtohomot (eqtohomot (base_paths _ _ eq) I) ρ) x.
+Proof.
+now induction eq.
+Qed.
+
+(* Lemma transportf_TypeIn {Γ : PreShv C} (I : C) (ρ : pr1 (pr1 Γ I)) (A B : Γ ⊢) (e : A = B) *)
+(*   (x : pr1 ((pr1 A) (make_ob I ρ))) : *)
+(*   transportf (λ x0 : Γ ⊢, pr1 ((pr1 x0) (make_ob I ρ))) e x = *)
+(*   transportf (λ x0 : hSet, pr1 x0) (eqtohomot (base_paths _ _ (base_paths _ _ e)) (make_ob I ρ)) x. *)
+
+Require Import TypeTheory.Auxiliary.Auxiliary.
+
+Definition comp_struct_from_fill_struct {Γ : PreShv C} {A : Γ ⊢} :
+  fill_struct A → comp_struct A.
+Proof.
+intros [f1 f2].
+mkpair.
+- intros I ρ φ u.
+  apply (comp_op_from_fill_op ρ φ u (f1 I ρ φ u)).
+- intros I ρ φ u.
+unfold comp_op_face, comp_op_from_fill_op.
+apply pathsinv0, TermIn_eq.
+etrans; [use pr1_transportf|].
+apply funextsec; intro J; apply funextsec; intro ρ'.
+rewrite !transportf_forall.
+etrans.
+use transportf_subst_TypeIn.
+unfold nat_trans_eq.
+rewrite base_total2_paths.
+rewrite toforallpaths_funextsec.
+rewrite toforallpaths_funextsec.
+rewrite idpath_transportf.
+cbn.
+admit.
+Admitted.
+
+End try2.
+
+(* Try 1: Not very good as uniformity gets very complicated *)
+Section try1.
 
 (* Composition operation *)
 (* Note that the substitutions are not combined, this way we avoid rewriting
@@ -581,22 +785,6 @@ set (x2 := comp J ρ' φ' (transportf (λ x, box J φ' ⊢ x) (eq1 ρ φ J f) u'
 apply (x1 = transportf (λ x, yo J ⊢ x) (eq2 ρ φ J f) x2).
 Defined.
 
-(* Maybe we can define a version of subst_term that takes 
-   
-σ1 : Δ --> Γ
-a : Δ ⊢ A⦃σ1⦄
-σ2 : Θ --> Δ
-
-and gives
-
-a⦃σ2⦄ : Θ ⊢ A⦃σ2 · σ1⦄
-
-and always start with a : Γ ⊢ A⦃1⦄
-
-This way all of the transports will be on λ x, Γ ⊢ A⦃x⦄ instead
-
-*)
-
 Definition comp_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
   ∑ (c : ∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), comp_op ρ φ u),
   (∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄),
@@ -666,5 +854,7 @@ Proof.
 unfold comp_op in c.
 unfold fill_op.
 Admitted.
+
+End try1.
 
 End cubical.
