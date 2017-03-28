@@ -27,17 +27,17 @@ Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
 
 Section upstream.
 
-(* Redefine this so that it is transparent... *)
-Lemma functor_data_eq {C C' : precategory_ob_mor} (F F' : functor_data C C')
+Lemma functor_data_eq_prf {C C' : precategory_ob_mor} (F F' : functor_data C C')
       (H : ∏ (c : C), (pr1 F) c = (pr1 F') c)
       (H1 : ∏ (C1 C2 : ob C) (f : C1 --> C2),
             transportf (λ x : C', pr1 F' C1 --> x) (H C2)
                        (transportf (λ x : C', x --> pr1 F C2) (H C1) (pr2 F C1 C2 f)) =
-            pr2 F' C1 C2 f) : F = F'.
+            pr2 F' C1 C2 f) : 
+  transportf (λ x : C → C', ∏ a b : C, C ⟦ a, b ⟧ → C' ⟦ x a, x b ⟧)
+    (funextfun (pr1 F) (pr1 F') (λ c : C, H c)) (pr2 F) = 
+  pr2 F'.
 Proof.
-  use total2_paths_f.
-  - use funextfun. intros c. exact (H c).
-  - use funextsec. intros C1. use funextsec. intros C2. use funextsec. intros f.
+use funextsec. intros C1. use funextsec. intros C2. use funextsec. intros f.
     assert (e : transportf (λ x : C → C', ∏ a b : C, a --> b → x a --> x b)
                            (funextfun (pr1 F) (pr1 F') (λ c : C, H c))
                            (pr2 F) C1 C2 f =
@@ -52,6 +52,19 @@ Proof.
     rewrite transport_mor_funextfun.
     rewrite transport_source_funextfun. rewrite transport_target_funextfun.
     exact (H1 C1 C2 f).
+Qed.
+
+(* Redefine this so that it is transparent... *)
+Lemma functor_data_eq {C C' : precategory_ob_mor} (F F' : functor_data C C')
+      (H : ∏ (c : C), (pr1 F) c = (pr1 F') c)
+      (H1 : ∏ (C1 C2 : ob C) (f : C1 --> C2),
+            transportf (λ x : C', pr1 F' C1 --> x) (H C2)
+                       (transportf (λ x : C', x --> pr1 F C2) (H C1) (pr2 F C1 C2 f)) =
+            pr2 F' C1 C2 f) : F = F'.
+Proof.
+  use total2_paths_f.
+  - use funextfun. intros c. exact (H c).
+  - now apply functor_data_eq_prf.
 Defined.
 
 Lemma transportf_to_transportb (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
