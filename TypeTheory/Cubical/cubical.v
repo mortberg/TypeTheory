@@ -252,9 +252,27 @@ Context (F : C ⟶ C).
 Notation "I +" := (F I) (at level 20).
 Arguments nat_trans_comp {_ _ _ _ _} _ _.
 
+(* We assume a cylinder functor F *)
 Context (p_F : F ⟹ Id) (e₀ e₁ : Id ⟹ F).
 Context (Hpe₀ : nat_trans_comp e₀ p_F = nat_trans_id Id).
 Context (Hpe₁ : nat_trans_comp e₁ p_F = nat_trans_id Id).
+
+(* We also assume a conjunction map *)
+Context (m : F ∙ F ⟹ F).
+Context (He₁m : nat_trans_comp (post_whisker e₁ F) m = nat_trans_id F).
+Context (He₁m' : nat_trans_comp (pre_whisker F e₁) m = nat_trans_id F).
+Context (He₀m : nat_trans_comp (post_whisker e₀ F) m = nat_trans_comp p_F e₀).
+Context (He₀m' : nat_trans_comp (pre_whisker F e₀) m = nat_trans_comp p_F e₀).
+
+Goal ∏ (I : C), UU.
+intros.
+generalize (nat_trans_eq_pointwise He₁m I).
+generalize (nat_trans_eq_pointwise He₁m' I).
+generalize (nat_trans_eq_pointwise He₀m I).
+generalize (nat_trans_eq_pointwise He₀m' I).
+generalize (nat_trans_eq_pointwise Hpe₀ I).
+cbn.
+Abort.
 
 Lemma isMonic_e₀ I : isMonic (e₀ I).
 Proof.
@@ -351,6 +369,15 @@ use mk_nat_trans.
   now apply funextsec; intro x; cbn; rewrite assoc.
 Defined.
 
+Definition m_PreShv (I : C) : yo ((I +) +) --> yo (I+).
+Proof.
+use mk_nat_trans.
++ intros J f.
+  exact (f · m I).
++ intros J K f.
+  now apply funextsec; intro x; cbn; rewrite assoc.
+Defined.
+
 Lemma isMonic_e₀_PreShv I : isMonic (e₀_PreShv I).
 Proof.
 intros Γ σ τ H.
@@ -385,6 +412,8 @@ set (H := nat_trans_eq_pointwise Hpe₁ I); cbn in H.
 now rewrite H, id_right.
 Qed.
 
+(* TODO: define equations for m *)
+
 Definition true : 1 --> FF.
 Proof.
 use mk_nat_trans.
@@ -406,8 +435,12 @@ Context (Hδ₁_pb : ∏ I, isPullback _ _ _ _ (Hδ₁ I)).
 (* TODO: generalize the rest so that it works in both directions *)
 
 (* Open boxes *)
+(* TODO: move up *)
+Definition b {I : C} (φ : yo I --> FF) : yo (I +) --> FF :=
+ (p_PreShv I · φ) ∨ (δ₀ I).
+
 Definition box (I : C) (φ : yo I --> FF) : PreShv C :=
-  yo (I+), ((p_PreShv I · φ) ∨ (δ₀ I)).
+  yo (I+), b φ.
 
 Definition subst_restriction {Γ Δ : PreShv C} (σ : Δ --> Γ) (φ : Γ --> FF) :
   Δ,(σ · φ) --> Γ,φ.
@@ -515,6 +548,7 @@ Definition comp_op_uniform {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --
     # yo f · comp I φ u v H = 
     comp J (# yo f · φ) (box_subst f φ · u) (# yo (# F f) · v) (fill_op_uniform_prf H f).
 
+(* This is weird, it should take a fill_op parametrized by all arguments *)
 Definition comp_op_from_fill_op {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) (f : fill_op H) : comp_op H := 
     e₁_PreShv I · f.
@@ -549,6 +583,29 @@ rewrite <- !assoc.
 now apply maponpaths, (nat_trans_ax e₁).
 Qed.
 
+Definition box_subst' {I J : C} (f : yo J --> yo I) (φ : yo I --> FF) :
+  box J (f · φ) --> box I φ.
+Admitted.
+
+Definition fill_op_from_comp_op
+  (comp : ∏ {X Y} {α : X --> Y} I φ (u : box I φ --> X) v (H : u · α = ι · v), comp_op H)
+  {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
+  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) : fill_op H.
+Proof.
+unfold comp_op in *.
+unfold fill_op in *.
+assert (Hbb : b (b φ) = m_PreShv I · b φ).
+admit.
+assert (b' : box (I +) (b φ) --> X).
+unfold box.
+rewrite Hbb.
+admit.
+Check (box_subst (m I)).
+
+Check box_subst.
+apply (@comp X Y α (I +) (b φ) b' (m_PreShv I · v)).
+Admitted.
+
 End try3.
 
 (* Attempt to transport along substitutions instead, didn't make things better *)
@@ -574,13 +631,13 @@ Definition subst_term' {Γ Δ Θ : PreShv C} {σ1 : Δ --> Γ} (σ2 : Θ --> Δ)
  transportf (λ x, Θ ⊢ x) (!subst_type_comp hsC σ2 σ1 A) (subst_term hsC σ2 a).
 
 (* Composition operation *)
-Definition comp_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition comp_op2 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄) : UU :=
     yo I ⊢ A⦃e₁_PreShv I · ρ⦄.
 
 Definition comp_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
   {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ι · ρ⦄}
-  (c : comp_op ρ φ u) : UU.
+  (c : comp_op2 ρ φ u) : UU.
 Proof.
 set (x1 := subst_term' (@ι _ φ) c).
 set (x2 := subst_term' (u_subst φ) u).
@@ -596,7 +653,7 @@ apply (x1 = transportf (λ x, yo I,φ ⊢ A⦃x⦄) eq x2).
 Defined.
 
 Definition comp_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
-  ∑ (c : ∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), comp_op ρ φ u),
+  ∑ (c : ∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), comp_op2 ρ φ u),
   (∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄),
      comp_op_face (c _ ρ φ u)).
   (* × *)
@@ -605,23 +662,23 @@ Definition comp_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
 
 
 (* Filling operation *)
-Definition fill_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition fill_op2 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄) : UU :=
     yo (I+) ⊢ A⦃ρ⦄.
 
 Definition fill_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
-  {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ι · ρ⦄} (f : fill_op ρ φ u) : UU :=
+  {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ι · ρ⦄} (f : fill_op2 ρ φ u) : UU :=
     subst_term' (@ι _ (p_PreShv I · φ ∨ δ₀ I)) f = u.
 
 Definition fill_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
-  ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), fill_op ρ φ u),
+  ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), fill_op2 ρ φ u),
   ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄),
      fill_op_face (f _ ρ φ u).
 
 
-Definition comp_op_from_fill_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition comp_op_from_fill_op2 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄)
-  (f : fill_op ρ φ u) : comp_op ρ φ u := subst_term' (e₁_PreShv I) f.
+  (f : fill_op2 ρ φ u) : comp_op2 ρ φ u := subst_term' (e₁_PreShv I) f.
 
 Lemma transportf_subst_TypeIn (Γ Δ : PreShv C) (σ1 σ2 : Δ --> Γ) (eq : σ1 = σ2)
   (A : Γ ⊢) (I : C) (ρ : pr1 (pr1 Δ I)) (x : pr1 (pr1 (A⦃σ1⦄) (make_ob I ρ))) : 
@@ -644,7 +701,7 @@ Proof.
 intros [f1 f2].
 mkpair.
 - intros I ρ φ u.
-  apply (comp_op_from_fill_op ρ φ u (f1 I ρ φ u)).
+  apply (comp_op_from_fill_op2 ρ φ u (f1 I ρ φ u)).
 - intros I ρ φ u.
 unfold comp_op_face, comp_op_from_fill_op.
 apply pathsinv0, TermIn_eq.
@@ -670,7 +727,7 @@ Section try1.
 (* Composition operation *)
 (* Note that the substitutions are not combined, this way we avoid rewriting
    with subst_type_comp later on *)
-Definition comp_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition comp_op1 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄) : UU :=
     yo I ⊢ A⦃ρ⦄⦃e₁_PreShv I⦄.
 
@@ -708,9 +765,9 @@ unfold eq, functor_eq, functor_data_eq.
 now rewrite !base_total2_paths.
 Qed.
 
-Definition comp_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition comp_op_face1 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ρ⦄⦃ι⦄}
-  (c : comp_op ρ φ u) : UU :=
+  (c : comp_op1 ρ φ u) : UU :=
     subst_term hsC (@ι _ φ) c =
     transportf (λ x, yo I,φ ⊢ x) eq (subst_term hsC (u_subst φ) u).
 
@@ -771,9 +828,9 @@ apply (!nat_trans_ax e₁ J I f).
 Admitted.
 
 (* Uniformity *)
-Definition comp_op_uniform {Γ : PreShv C} {A : Γ ⊢}
+Definition comp_op_uniform1 {Γ : PreShv C} {A : Γ ⊢}
   {I : C} (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄)
-  (comp : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), comp_op ρ φ u) :
+  (comp : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), comp_op1 ρ φ u) :
   ∏ (J : C) (f : J --> I), UU.
 Proof.
 intros J f.
@@ -785,40 +842,38 @@ set (x2 := comp J ρ' φ' (transportf (λ x, box J φ' ⊢ x) (eq1 ρ φ J f) u'
 apply (x1 = transportf (λ x, yo J ⊢ x) (eq2 ρ φ J f) x2).
 Defined.
 
-Definition comp_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
-  ∑ (c : ∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), comp_op ρ φ u),
+Definition comp_struct1 {Γ : PreShv C} (A : Γ ⊢) : UU :=
+  ∑ (c : ∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), comp_op1 ρ φ u),
   (∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄),
-     comp_op_face (c _ ρ φ u)) ×
+     comp_op_face1 (c _ ρ φ u)) ×
   (∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄) J (f : J --> I),
-     comp_op_uniform ρ φ u c J f).
+     comp_op_uniform1 ρ φ u c J f).
 
 (* Filling operation *)
-Definition fill_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition fill_op1 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄) : UU :=
     yo (I+) ⊢ A⦃ρ⦄.
 
-Definition fill_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
-  {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ρ⦄⦃ι⦄} (f : fill_op ρ φ u) : UU :=
+Definition fill_op_face1 {Γ : PreShv C} {A : Γ ⊢} {I : C}
+  {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ρ⦄⦃ι⦄} (f : fill_op1 ρ φ u) : UU :=
     subst_term hsC (@ι _ (p_PreShv I · φ ∨ δ₀ I)) f = u.
 
-Definition fill_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
-  ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), fill_op ρ φ u),
+Definition fill_struct1 {Γ : PreShv C} (A : Γ ⊢) : UU :=
+  ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), fill_op1 ρ φ u),
   ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄),
-     fill_op_face (f _ ρ φ u).
+     fill_op_face1 (f _ ρ φ u).
 
-Definition comp_op_from_fill_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition comp_op_from_fill_op1 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄)
-  (f : fill_op ρ φ u) : comp_op ρ φ u := subst_term hsC (e₁_PreShv I) f.
+  (f : fill_op1 ρ φ u) : comp_op1 ρ φ u := subst_term hsC (e₁_PreShv I) f.
 
-Require Import TypeTheory.Auxiliary.Auxiliary.
-
-Definition comp_struct_from_fill_struct {Γ : PreShv C} {A : Γ ⊢} :
-  fill_struct A → comp_struct A.
+Definition comp_struct_from_fill_struct1 {Γ : PreShv C} {A : Γ ⊢} :
+  fill_struct1 A → comp_struct1 A.
 Proof.
 intros [f1 f2].
 mkpair.
 - intros I ρ φ u.
-  apply (comp_op_from_fill_op ρ φ u (f1 I ρ φ u)).
+  apply (comp_op_from_fill_op1 ρ φ u (f1 I ρ φ u)).
 - split.
   + intros I ρ φ u.
 unfold comp_op_face, comp_op_from_fill_op.
@@ -847,9 +902,9 @@ apply pathsinv0.
 admit.
 Admitted.
 
-Definition fill_op_from_comp_op {Γ : PreShv C} {A : Γ ⊢} {I : C}
+Definition fill_op_from_comp_op1 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄)
-  (c : comp_op ρ φ u) : fill_op ρ φ u.
+  (c : comp_op1 ρ φ u) : fill_op1 ρ φ u.
 Proof.
 unfold comp_op in c.
 unfold fill_op.
