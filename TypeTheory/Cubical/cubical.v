@@ -176,6 +176,14 @@ Proof.
 exact (eqtohomot (nat_trans_eq_pointwise (join_mor_absorb_meet_mor _ FF_lattice) I) (dirprodpair x y)).
 Qed.
 
+Lemma assoc_eqn (I : C) (x y z : pr1 ((pr1 FF) I)) :
+  pr1 join_FF I (dirprodpair (pr1 join_FF I (dirprodpair x y)) z) =
+  pr1 join_FF I (dirprodpair x (pr1 join_FF I (dirprodpair y z))).
+Proof.
+exact (eqtohomot (nat_trans_eq_pointwise (isassoc_join_mor _ FF_lattice) I) ((x,,y),,z)).
+Qed.
+
+
 Lemma key_eqn (I : C) (x : pr1 ((pr1 FF) I)) : pr1 join_FF I (dirprodpair FF1 x) = FF1.
 Proof.
 now rewrite <- (eqn2 _ x), eqn3.
@@ -262,11 +270,20 @@ Context (Hpe₀ : nat_trans_comp e₀ p_F = nat_trans_id Id).
 Context (Hpe₁ : nat_trans_comp e₁ p_F = nat_trans_id Id).
 
 (* We also assume a conjunction map *)
+(* m : F^2 -> F *)
+(* m e0 = e0 p *)
+(* m (e0+) = e0 p *)
+(* m (e1+) = 1 *)
+(* p m = p p *)
 Context (m : F ∙ F ⟹ F).
 Context (He₁m : nat_trans_comp (post_whisker e₁ F) m = nat_trans_id F).
 Context (He₁m' : nat_trans_comp (pre_whisker F e₁) m = nat_trans_id F).
 Context (He₀m : nat_trans_comp (post_whisker e₀ F) m = nat_trans_comp p_F e₀).
 Context (He₀m' : nat_trans_comp (pre_whisker F e₀) m = nat_trans_comp p_F e₀).
+
+(* Whish one is correct? Hpm' seems more useful later *)
+(* Context (Hpm : nat_trans_comp m p_F = nat_trans_comp (post_whisker p_F F) p_F). *)
+Context (Hpm' : nat_trans_comp m p_F = nat_trans_comp (pre_whisker F p_F) p_F).
 
 Goal ∏ (I : C), UU.
 intros.
@@ -445,6 +462,10 @@ Context (Hδ₁ : ∏ (I : C), e₁_PreShv I · δ₁ I = TerminalArrow _ · tru
 Context (Hδ₀_pb : ∏ I, isPullback _ _ _ _ (Hδ₀ I)).
 Context (Hδ₁_pb : ∏ I, isPullback _ _ _ _ (Hδ₁ I)).
 
+(* How important is the pullback condition? *)
+Context (Hδ₀_unique : ∏ (I : C) (d0 : yo (I+) --> FF) (Hd0 : e₀_PreShv I · d0 = TerminalArrow _ · true), d0 = δ₀ I).
+(* TODO: same for δ₁ *)
+
 (* TODO: generalize the rest so that it works in both directions *)
 
 (* Open boxes *)
@@ -485,9 +506,46 @@ set (σ2 := subst_restriction (e₁_PreShv I) (p_PreShv I · φ)).
 exact (σ1 · σ2 · join_subst _ _).
 Defined.
 
+Lemma temp_prf (I J : C) (f : J --> I) :
+  e₀_PreShv J · (# yo (# F f) · δ₀ I) = TerminalArrow (yo J) · true.
+Proof.
+rewrite assoc.
+assert (H : e₀_PreShv J · # yo (# F f) = # yo f · e₀_PreShv I).
+{ apply (nat_trans_eq has_homsets_HSET); intros K; apply funextsec; intro ρ.
+  cbn; unfold yoneda_morphisms_data.
+  rewrite <-!assoc.
+  apply maponpaths, (!nat_trans_ax e₀ J I f).
+} 
+rewrite H, <- assoc, Hδ₀.
+now apply (nat_trans_eq has_homsets_HSET); intros K; apply funextsec.
+Qed.
+
 (* I think this follows from uniqueness *)
 Lemma temp I J (f : J --> I) : # yo (# F f) · δ₀ I = δ₀ J.
-Admitted.
+Proof.
+use Hδ₀_unique.
+- apply temp_prf.
+(* Failed attempt to prove pullback condition, maybe not needed? *)
+(* - apply pb_if_pointwise_pb. *)
+(* intros K. *)
+(* generalize (isPullback_preShv_to_pointwise hsC (Hδ₀_pb J) K). *)
+(* cbn. *)
+(* unfold yoneda_morphisms_data. *)
+(* unfold yoneda_objects_ob. *)
+(* intros HH. *)
+(* apply isPullback_HSET. *)
+(* cbn. *)
+(* intros a x H. *)
+(* (* unfold isPullback in *. *) *)
+(* (* cbn in *. *) *)
+(* (* Search isPullback HSET. *) *)
+(* set (HHH := pullback_HSET_univprop_elements _ HH). *)
+(* cbn in *. *)
+(* generalize (pullback_HSET_univprop_elements _ (isPullback_preShv_to_pointwise hsC (Hδ₀_pb I) K)). *)
+(* intros H4. *)
+(* cbn in *. *)
+(* apply HHH. *)
+Qed.
 
 Definition box_subst_prf {I J : C} (f : J --> I) (φ : yo I --> FF) (K : C)
   (ρ' : pr1 (box J (# yo f · φ)) K : hSet) :
@@ -518,7 +576,7 @@ use mk_nat_trans.
 Defined.
 
 (* Fibration approach *)
-Section try3.
+Section fibrations.
 
 Local Notation "a --> b" := (precategory_morphisms a b).
 
@@ -586,6 +644,28 @@ use (tpair _ _ _).
 Defined.
 
 Lemma b_m (I : C) (φ : yo I --> FF) : b (b φ) = m_PreShv I · b φ.
+Proof.
+Search m_PreShv.
+apply pathsinv0.
+etrans.
+unfold b.
+apply idpath.
+rewrite comp_join.
+assert (h1 : m_PreShv I · (p_PreShv I · φ) = p_PreShv (I+) · (p_PreShv I · φ)).
+{ rewrite !assoc.
+  apply cancel_postcomposition, (nat_trans_eq has_homsets_HSET); intros J.
+  cbn; unfold yoneda_morphisms_data; apply funextsec;intro ρ; cbn.
+  rewrite <-!assoc; apply maponpaths.
+  apply (nat_trans_eq_pointwise Hpm' I).
+}
+assert (h2 : m_PreShv I · δ₀ I = ((p_PreShv (I +) · δ₀ I) ∨ (δ₀ (I +)))).
+{
+admit.
+}
+rewrite h1, h2.
+apply (nat_trans_eq has_homsets_HSET); intros J.
+cbn; unfold yoneda_morphisms_data; apply funextsec;intro ρ; cbn.
+apply (!(assoc_eqn J _ _ _)).
 Admitted.
 
 Lemma box_X_subst {X Y : PreShv C} (α : X --> Y) (I : C) (φ : yo I --> FF) (u : box I φ --> X) :
@@ -751,99 +831,10 @@ use (tpair _ _ _).
       apply maponpaths.
       rewrite <- !assoc.
       apply maponpaths, (nat_trans_ax m J I f).
-Defined.
-
-
-
-(* Definition fill_op {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF} *)
-(*   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) : UU := yo (I+) --> X. *)
-
-(* (* fill_op makes both triangles commute *) *)
-(* Definition fill_op_comm {X Y α I φ} {u : box I φ --> X} {v : yo (I+) --> Y} *)
-(*   {H : u · α = ι · v} (fill : fill_op H) : UU := *)
-(*     (u = ι · fill) × (fill · α = v). *)
-
-(* Definition fill_op_uniform {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF} *)
-(*   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) *)
-(*   (fill : ∏ {X Y} {α : X --> Y} I φ (u : box I φ --> X) v (H : u · α = ι · v), fill_op H) *)
-(*   {J} (f : J --> I) : UU := *)
-(*     # yo (# F f) · fill I φ u v H = *)
-(*     fill J (# yo f · φ) (box_subst f φ · u) (# yo (# F f) · v) (fill_op_uniform_prf H f). *)
-
-
-(* Definition comp_op {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF} *)
-(*   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) : UU := yo (I) --> X. *)
-
-(* Definition comp_op_comm {X Y α I φ} {u : box I φ --> X} {v : yo (I+) --> Y} *)
-(*   (H : u · α = ι · v) (comp : comp_op H) : UU := *)
-(*      (ι · comp = u_subst φ · u) × (comp · α = e₁_PreShv I · v). *)
-
-(* Definition comp_op_uniform {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF} *)
-(*   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) *)
-(*   (comp : ∏ {X Y} {α : X --> Y} I φ (u : box I φ --> X) v (H : u · α = ι · v), comp_op H) *)
-(*   {J} (f : J --> I) : UU := *)
-(*     # yo f · comp I φ u v H =  *)
-(*     comp J (# yo f · φ) (box_subst f φ · u) (# yo (# F f) · v) (fill_op_uniform_prf H f). *)
-
-(* (* This is weird, it should take a fill_op parametrized by all arguments *) *)
-(* Definition comp_op_from_fill_op {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF} *)
-(*   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) (f : fill_op H) : comp_op H :=  *)
-(*     e₁_PreShv I · f. *)
-
-
-(* Lemma comp_op_from_fill_op_comm {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF} *)
-(*   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) (f : fill_op H)  *)
-(*   (Hf : fill_op_comm f) : comp_op_comm _ (comp_op_from_fill_op _ f). *)
-(* Proof. *)
-(* unfold comp_op_from_fill_op, comp_op_comm. *)
-(* rewrite (pr1 Hf), <- (pr2 Hf). *)
-(* split; apply (nat_trans_eq (has_homsets_HSET)); intros J; *)
-(* now apply funextsec; intro ρ'. *)
-(* Qed. *)
-
-(* Lemma comp_op_from_fill_op_uniform {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF} *)
-(*   {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) *)
-(*   (fill : ∏ (X Y : PreShv C) {α : X --> Y} {I : C} {φ : yo I --> FF} (u : box I φ --> X) *)
-(*             (v : yo (I+) --> Y) (H : u · α = ι · v), fill_op H) *)
-(*   {J} (f : J --> I) (Hf : fill_op_uniform H fill f) :  *)
-(*     comp_op_uniform H (λ (X Y : PreShv C) (α : X --> Y)  *)
-(*                          (I : C) (φ : yo I --> FF) (u : box I φ --> X) (v : yo (I +) --> Y) *)
-(*                          (H : u · α = ι · v), comp_op_from_fill_op H (fill X Y u v H)) f. *)
-(* Proof. *)
-(* unfold comp_op_from_fill_op, comp_op_uniform. *)
-(* unfold fill_op_uniform in Hf. *)
-(* rewrite <-Hf. *)
-(* apply (nat_trans_eq (has_homsets_HSET)); intros K. *)
-(* apply funextsec; intro ρ'; cbn. *)
-(* apply maponpaths; unfold yoneda_morphisms_data. *)
-(* rewrite <- !assoc. *)
-(* now apply maponpaths, (nat_trans_ax e₁). *)
-(* Qed. *)
-
-Definition box_subst' {I J : C} (f : yo J --> yo I) (φ : yo I --> FF) :
-  box J (f · φ) --> box I φ.
 Admitted.
 
-Definition fill_op_from_comp_op
-  (comp : ∏ {X Y} {α : X --> Y} I φ (u : box I φ --> X) v (H : u · α = ι · v), comp_op H)
-  {X Y : PreShv C} {α : X --> Y} {I : C} {φ : yo I --> FF}
-  {u : box I φ --> X} {v : yo (I+) --> Y} (H : u · α = ι · v) : fill_op H.
-Proof.
-unfold comp_op in *.
-unfold fill_op in *.
-assert (Hbb : b (b φ) = m_PreShv I · b φ).
-admit.
-assert (b' : box (I +) (b φ) --> X).
-unfold box.
-rewrite Hbb.
-admit.
-Check (box_subst (m I)).
+End fibrations.
 
-Check box_subst.
-apply (@comp X Y α (I +) (b φ) b' (m_PreShv I · v)).
-Admitted.
-
-End try3.
 
 (* Attempt to transport along substitutions instead, didn't make things better *)
 Section try2.
@@ -889,7 +880,7 @@ assert (eq : u_subst φ · (ι · ρ) = ι · (e₁_PreShv I · ρ)).
 apply (x1 = transportf (λ x, yo I,φ ⊢ A⦃x⦄) eq x2).
 Defined.
 
-Definition comp_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
+Definition comp_struct2 {Γ : PreShv C} (A : Γ ⊢) : UU :=
   ∑ (c : ∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), comp_op2 ρ φ u),
   (∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄),
      comp_op_face (c _ ρ φ u)).
@@ -907,7 +898,7 @@ Definition fill_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C}
   {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ι · ρ⦄} (f : fill_op2 ρ φ u) : UU :=
     subst_term' (@ι _ (p_PreShv I · φ ∨ δ₀ I)) f = u.
 
-Definition fill_struct {Γ : PreShv C} (A : Γ ⊢) : UU :=
+Definition fill_struct2 {Γ : PreShv C} (A : Γ ⊢) : UU :=
   ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), fill_op2 ρ φ u),
   ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄),
      fill_op_face (f _ ρ φ u).
@@ -932,15 +923,16 @@ Qed.
 
 Require Import TypeTheory.Auxiliary.Auxiliary.
 
-Definition comp_struct_from_fill_struct {Γ : PreShv C} {A : Γ ⊢} :
-  fill_struct A → comp_struct A.
+
+Definition comp_struct_from_fill_struct2 {Γ : PreShv C} {A : Γ ⊢} :
+  fill_struct2 A → comp_struct2 A.
 Proof.
 intros [f1 f2].
 mkpair.
 - intros I ρ φ u.
   apply (comp_op_from_fill_op2 ρ φ u (f1 I ρ φ u)).
 - intros I ρ φ u.
-unfold comp_op_face, comp_op_from_fill_op.
+unfold comp_op_face, comp_op_from_fill_op2.
 apply pathsinv0, TermIn_eq.
 etrans; [use pr1_transportf|].
 apply funextsec; intro J; apply funextsec; intro ρ'.
@@ -1113,7 +1105,7 @@ mkpair.
   apply (comp_op_from_fill_op1 ρ φ u (f1 I ρ φ u)).
 - split.
   + intros I ρ φ u.
-unfold comp_op_face, comp_op_from_fill_op.
+unfold comp_op_face, comp_op_from_fill_op2.
 apply pathsinv0, TermIn_eq.
 etrans; [use pr1_transportf|].
 apply funextsec; intro J; apply funextsec; intro ρ'.
@@ -1125,17 +1117,6 @@ Search subst_term.
 unfold fill_op_face.
 intros H.
 cbn.
-generalize (eqtohomot (eqtohomot (maponpaths pr1 H) J) ( (pr1 ρ';; e₁ I,,
-     maponpaths _
-       (pathsdirprod (u_subst_subproof I φ J ρ')
-          (idpath _)) @
-     eqtohomot
-       (nat_trans_eq_pointwise
-          (join_mor_top_mor BinProducts_PreShv 1 FF_lattice) J)
-       (pr1 (δ₀ I) J (pr1 ρ';; e₁ I))))).
-cbn.
-apply pathsinv0.
-+ intros.
 admit.
 Admitted.
 
@@ -1143,8 +1124,8 @@ Definition fill_op_from_comp_op1 {Γ : PreShv C} {A : Γ ⊢} {I : C}
   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄)
   (c : comp_op1 ρ φ u) : fill_op1 ρ φ u.
 Proof.
-unfold comp_op in c.
-unfold fill_op.
+unfold comp_op1 in c.
+unfold fill_op1.
 Admitted.
 
 End try1.
