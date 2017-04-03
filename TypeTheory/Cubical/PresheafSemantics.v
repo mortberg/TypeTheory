@@ -487,10 +487,11 @@ now rewrite (base_paths_subst_type_pair_p σ a), toforallpaths_funextsec, idpath
 Qed.
 
 (* TODO: prove this *)
-(* Lemma subst_pair_subst {Γ Δ Θ : PreShv C} (σ1 : Δ --> Γ) (σ2 : Θ --> Δ) *)
-(*   {A : Γ ⊢} (a : Δ ⊢ A⦃σ1⦄) : *)
-(*   σ2 · subst_pair σ1 a = *)
-(*   subst_pair (σ2 · σ1) (transportf (λ x : Θ ⊢, Θ ⊢ x) (!subst_type_comp σ2 σ1 A) (subst_term σ2 a)). *)
+Lemma subst_pair_subst {Γ Δ Θ : PreShv C} (σ1 : Δ --> Γ) (σ2 : Θ --> Δ)
+  {A : Γ ⊢} (a : Δ ⊢ A⦃σ1⦄) :
+  σ2 · subst_pair σ1 a =
+  subst_pair (σ2 · σ1) (transportb (λ x : Θ ⊢, Θ ⊢ x) (subst_type_comp σ2 σ1 A) (subst_term σ2 a)).
+Admitted.
 (* Proof. *)
 (* apply (nat_trans_eq has_homsets_HSET); simpl; intros I. *)
 (* apply funextsec; intro ρ. *)
