@@ -502,6 +502,7 @@ use total2.
            fib J (# yo f · φ) (box_subst f φ · u) (# yo (# F f) · v) (fib_uniform_prf H f)).
 Defined.
 
+
 (* A fibration comp struct - diagonal map for the extended diagram *)
 Definition fibcomp_struct {X Y : PreShv C} (α : X --> Y) : UU.
 Proof.
@@ -564,8 +565,10 @@ Lemma fib_to_fibcomp_comm2 {X Y : PreShv C} {α : X --> Y} (Fα : fib_struct α)
 Proof.
 unfold fib_to_fibcomp_op; induction Fα as [fib Hfib]; simpl.
 destruct (Hfib I φ u v H) as [[_ Hfib2] _].
-etrans; [|apply maponpaths, Hfib2].
-now apply (nat_trans_eq (has_homsets_HSET)); intros J; apply funextsec.
+etrans; [apply (! (assoc (e₁_PreShv I) _ _))|].
+now rewrite Hfib2.
+(* etrans; [|apply maponpaths, Hfib2]. *)
+(* now apply (nat_trans_eq (has_homsets_HSET)); intros J; apply funextsec. *)
 Qed.
 
 (* Uniformity *)
@@ -694,9 +697,10 @@ pathvia (transportf (λ x, x --> X) (maponpaths (box (J+)) (b_yo f φ))
 { apply pathsinv0, (transportf_to_transportb _ (λ x, x --> X)).
   etrans; [|apply idtoiso_precompose].
   rewrite pathsinv0inv0.
-  apply (nat_trans_eq has_homsets_HSET); intro K; apply funextsec; intros ρ; cbn.
-  apply maponpaths, subtypeEquality; [ intros x; apply setproperty|]; simpl.
-  unfold yoneda_morphisms_data.
+  apply (nat_trans_eq has_homsets_HSET); intro K; apply funextsec; intros ρ.
+  apply (maponpaths (pr1 u K)).
+  apply subtypeEquality; [ intros x; apply setproperty|].
+  (* simpl. *) (* This simpl gives an EXTREMELY slow Qed *)
   etrans; [|apply assoc].
   etrans; [|eapply pathsinv0, maponpaths, (nat_trans_ax m J I f)].
   rewrite assoc.
@@ -704,8 +708,7 @@ pathvia (transportf (λ x, x --> X) (maponpaths (box (J+)) (b_yo f φ))
   apply (ρ_eq (J +) K (b (# yo f · φ)) (# yo (# F f) · b φ) ρ (b_yo f φ)). }
 { induction (b_yo f φ).
   now rewrite idpath_transportf. }
-Admitted.
-(* Time Qed. *) (* This Qed is EXTREMELY slow *)
+Qed.
 
 Lemma yo_m_v {I J} (f : J --> I) (Y : PreShv C) (v : yo (I +) --> Y) :
   # yo (# F (# F f)) · (m_PreShv I · v) = m_PreShv J · (# yo (# F f) · v).
@@ -786,9 +789,34 @@ This way all of the transports will be on λ x, Γ ⊢ A⦃x⦄ instead
 *)
 Definition subst_term' {Γ Δ Θ : PreShv C} {σ1 : Δ --> Γ} (σ2 : Θ --> Δ)
   {A : Γ ⊢} (a : Δ ⊢ A⦃σ1⦄) : Θ ⊢ A⦃σ2 · σ1⦄ :=
- transportf (λ x, Θ ⊢ x) (!subst_type_comp hsC σ2 σ1 A) (subst_term hsC σ2 a).
+ transportb (λ x, Θ ⊢ x) (subst_type_comp hsC σ2 σ1 A) (subst_term hsC σ2 a).
+
+(* Definition fill_op1 {Γ : PreShv C} {A : Γ ⊢} {I : C} *)
+(*   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄) : UU := *)
+(*     yo (I+) ⊢ A⦃ρ⦄. *)
+
+(* Definition fill_op_face1 {Γ : PreShv C} {A : Γ ⊢} {I : C} *)
+(*   {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ρ⦄⦃ι⦄} (f : fill_op1 ρ φ u) : UU := *)
+(*     subst_term hsC (@ι _ (p_PreShv I · φ ∨ δ₀ I)) f = u. *)
+
+(* Definition fill_struct1 {Γ : PreShv C} (A : Γ ⊢) : UU := *)
+(*   ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), fill_op1 ρ φ u), *)
+(*   ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), *)
+
+(*      fill_op_face1 (f _ ρ φ u). *)
 
 (* Filling structure on a type Γ ⊢ A *)
+(* Definition fill_struct {Γ : PreShv C} (A : Γ ⊢) : UU. *)
+(* Proof. *)
+(* use total2. *)
+(* - apply (∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), yo (I+) ⊢ A⦃ρ⦄). *)
+(* - intros fill. *)
+(*   use (∏ I (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ρ⦄⦃ι⦄), _ × _). *)
+(*   + apply (subst_term _ (@ι _ (b φ)) (fill I ρ φ u) = u). *)
+(*   + use (∏ J (f : J --> I), _). *)
+(*     apply UU. (* TODO: uniformity *) *)
+(* Defined. *)
+
 Definition fill_struct {Γ : PreShv C} (A : Γ ⊢) : UU.
 Proof.
 use total2.
@@ -800,49 +828,69 @@ use total2.
     apply UU. (* TODO: uniformity *)
 Defined.
 
+
 Lemma fill_struct_to_fib {Γ : PreShv C} (A : Γ ⊢) :
   fill_struct A → fib_struct (@p _ _ A).
 Proof.
 intros [fill Hfill].
+transparent assert (u' : (∏ (I : C) (φ : yo I --> FF) (v : yo (I +) --> Γ) (u : box I φ --> Γ ⋆ A) (H : u · p = ι · v), box I φ ⊢ A⦃ι · v⦄)).
+{ intros.
+  induction H.
+  exact (transportb (λ x, _ ⊢ x) (subst_type_comp _ _ _ _) (subst_term hsC u (q hsC))).
+}
 use (tpair _ _ _).
 + intros I φ u v H.
-assert (u' : box I φ ⊢ A⦃ι · v⦄).
-{
-use mkTermIn.
-- intros J ρ.
-rewrite <- H.
-apply (pr2 (pr1 u J ρ)).
-- intros J K f ρ.
-cbn.
-admit.
-}
-set (f := fill I v φ u').
-Check (term_to_subst _ _ f).
-set (T1 := @TermInSection_to_TermIn C hsC Γ A).
-set (T2 := @TermIn_to_TermInSection C hsC Γ A).
-unfold TermInSection in *.
-admit.
-+ admit.
+  exact (subst_pair hsC v (fill I v φ (u' I φ v u H))).
++ cbn beta zeta.
+  intros.
+  split.
+  split.
+  *
+  set (HH := pr1 (Hfill I v φ (u' I φ v u H))).
+  rewrite subst_pair_subst.
+  unfold subst_term' in HH.
+  rewrite HH.
+  unfold u'.
+  clear -u.
+  induction H.
+  simpl.
+  Search subst_pair.
+  unfold transportb.
+  etrans.
+  Focus 2.
+  apply (@subst_pair_subst C hsC _ _ _ p u A (q hsC)).
+  rewrite subst_pair_id.
+  now rewrite id_right.
+* now rewrite subst_pair_p.
+* admit.
 Admitted.
 
 Lemma fib_to_fill_struct {Γ : PreShv C} (A : Γ ⊢) :
   fib_struct (@p _ _ A) → fill_struct A.
+Proof.
+intros [fibfill Hfibfill].
+transparent assert (u' : (∏ (I : C) (ρ : yo (I +) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), box I φ --> Γ ⋆ A)).
+{ intros; exact (subst_pair hsC _ u). }
+use (tpair _ _ _).
+- intros.
+  assert (H : u' I ρ φ u · p = ι · ρ).
+  { now apply subst_pair_p. }
+  exact (transportf (λ x, yo (I+) ⊢ A⦃x⦄) (pr2 (pr1 (Hfibfill I φ (u' I ρ φ u) ρ H)))
+        (transportb (λ x, yo (I+) ⊢ x) (subst_type_comp _ _ _ _)
+                    (subst_term hsC (fibfill I φ (u' I ρ φ u) ρ H) (q hsC)))).
+- cbn beta zeta.
+  intros.
+    assert (H : u' I ρ φ u · p = ι · ρ).
+  { now apply subst_pair_p. }
+  split.
+  +
+    unfold subst_term'.
+    generalize (subst_term_comp hsC (@ι _ (b φ)) (fibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)) (q hsC)).
+    Check (pr1 (pr1 (Hfibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)))).
+    Check (subst_term hsC (@ι _ (b φ) · fibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)) (q hsC)).
+    admit.
+  + admit.
 Admitted.
-
-(* Definition fill_op {Γ : PreShv C} {A : Γ ⊢} {I : C} *)
-(*   (ρ : yo (I+) --> Γ)(φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄) : UU := *)
-(*     yo (I+) ⊢ A⦃ρ⦄. *)
-
-(* Definition fill_op_face {Γ : PreShv C} {A : Γ ⊢} {I : C} *)
-(*   {ρ : yo (I+) --> Γ} {φ : yo I --> FF} {u : box I φ ⊢ A⦃ι · ρ⦄} (f : fill_op ρ φ u) : UU := *)
-(*     subst_term' (@ι _ (b φ)) f = u. *)
-
-(* Definition fill_struct {Γ : PreShv C} (A : Γ ⊢) : UU := *)
-(*   ∑ (f : ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), fill_op ρ φ u), *)
-(*   ∏ (I : C) (ρ : yo (I+) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), *)
-(*      fill_op_face (f _ ρ φ u). *)
-
-
 
 
 (* Composition operation *)
