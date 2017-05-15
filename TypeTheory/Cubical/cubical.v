@@ -1,6 +1,3 @@
-Require Import UniMath.Foundations.PartB.
-Require Import UniMath.Foundations.PartD.
-Require Import UniMath.Foundations.Propositions.
 Require Import UniMath.Foundations.Sets.
 
 Require Import UniMath.MoreFoundations.Tactics.
@@ -19,6 +16,7 @@ Require Import UniMath.CategoryTheory.limits.graphs.limits.
 Require Import UniMath.CategoryTheory.limits.pullbacks.
 Require Import UniMath.CategoryTheory.limits.binproducts.
 Require Import UniMath.CategoryTheory.limits.terminal.
+Require Import UniMath.CategoryTheory.limits.graphs.eqdiag.
 Require Import UniMath.CategoryTheory.LatticeObject.
 Require Import UniMath.CategoryTheory.Presheaf.
 Require Import UniMath.CategoryTheory.ElementsOp.
@@ -44,6 +42,8 @@ Local Notation "c '⊗' d" := (BinProductObject _ (@BinProducts_PreShv C c d)) (
 Local Notation "f '××' g" := (BinProductOfArrows _ (BinProducts_PreShv _ _) (BinProducts_PreShv _ _) f g) (at level 90) : cat.
 Local Notation "1" := Terminal_PreShv.
 Local Notation "'Id'" := (functor_identity _).
+
+Let p {Γ : PreShv C} {A : Γ ⊢} := @ctx_proj _ _ A.
 
 (* Why is the formatting not working for this notation: *)
 Local Notation "C ⟦ a , b ⟧" := (precategory_morphisms (C:=C) a b) (format "C ⟦ a , b ⟧", at level 50) : cat.
@@ -694,7 +694,7 @@ Lemma box_subst_comp_box_b_subst {I J} (f : J --> I) (φ : yo I --> FF)
 Proof.
 pathvia (transportf (λ x, x --> X) (maponpaths (box (J+)) (b_yo f φ))
                     (box_b_subst α J (# yo f · φ) (box_subst f φ · u))).
-{ apply pathsinv0, (transportf_to_transportb _ (λ x, x --> X)).
+{ apply (@transportf_transpose _ (λ x, x --> X)), pathsinv0.
   etrans; [|apply idtoiso_precompose].
   rewrite pathsinv0inv0.
   apply (nat_trans_eq has_homsets_HSET); intro K; apply funextsec; intros ρ.
@@ -828,15 +828,14 @@ use total2.
     apply UU. (* TODO: uniformity *)
 Defined.
 
-
 Lemma fill_struct_to_fib {Γ : PreShv C} (A : Γ ⊢) :
-  fill_struct A → fib_struct (@p _ _ A).
+  fill_struct A → fib_struct (@p _ A).
 Proof.
 intros [fill Hfill].
 transparent assert (u' : (∏ (I : C) (φ : yo I --> FF) (v : yo (I +) --> Γ) (u : box I φ --> Γ ⋆ A) (H : u · p = ι · v), box I φ ⊢ A⦃ι · v⦄)).
 { intros.
   induction H.
-  exact (transportb (λ x, _ ⊢ x) (subst_type_comp _ _ _ _) (subst_term hsC u (q hsC))).
+  use (transportb (λ x, _ ⊢ x) (subst_type_comp _ _ _ _) (subst_term hsC u (ctx_last hsC))).
 }
 use (tpair _ _ _).
 + intros I φ u v H.
@@ -858,15 +857,15 @@ use (tpair _ _ _).
   unfold transportb.
   etrans.
   Focus 2.
-  apply (@subst_pair_subst C hsC _ _ _ p u A (q hsC)).
+  apply (@subst_pair_subst C hsC _ _ _ (ctx_proj) u A (ctx_last hsC)).
   rewrite subst_pair_id.
   now rewrite id_right.
-* now rewrite subst_pair_p.
+* unfold p. now rewrite subst_pair_p.
 * admit.
 Admitted.
 
 Lemma fib_to_fill_struct {Γ : PreShv C} (A : Γ ⊢) :
-  fib_struct (@p _ _ A) → fill_struct A.
+  fib_struct (@ctx_proj _ _ A) → fill_struct A.
 Proof.
 intros [fibfill Hfibfill].
 transparent assert (u' : (∏ (I : C) (ρ : yo (I +) --> Γ) (φ : yo I --> FF) (u : box I φ ⊢ A⦃ι · ρ⦄), box I φ --> Γ ⋆ A)).
@@ -877,7 +876,7 @@ use (tpair _ _ _).
   { now apply subst_pair_p. }
   exact (transportf (λ x, yo (I+) ⊢ A⦃x⦄) (pr2 (pr1 (Hfibfill I φ (u' I ρ φ u) ρ H)))
         (transportb (λ x, yo (I+) ⊢ x) (subst_type_comp _ _ _ _)
-                    (subst_term hsC (fibfill I φ (u' I ρ φ u) ρ H) (q hsC)))).
+                    (subst_term hsC (fibfill I φ (u' I ρ φ u) ρ H) (ctx_last hsC)))).
 - cbn beta zeta.
   intros.
     assert (H : u' I ρ φ u · p = ι · ρ).
@@ -885,9 +884,9 @@ use (tpair _ _ _).
   split.
   +
     unfold subst_term'.
-    generalize (subst_term_comp hsC (@ι _ (b φ)) (fibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)) (q hsC)).
+    generalize (subst_term_comp hsC (@ι _ (b φ)) (fibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)) (ctx_last hsC)).
     Check (pr1 (pr1 (Hfibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)))).
-    Check (subst_term hsC (@ι _ (b φ) · fibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)) (q hsC)).
+    Check (subst_term hsC (@ι _ (b φ) · fibfill I φ (u' I ρ φ u) ρ (subst_pair_p hsC (ι · ρ) u)) (ctx_last hsC)).
     admit.
   + admit.
 Admitted.

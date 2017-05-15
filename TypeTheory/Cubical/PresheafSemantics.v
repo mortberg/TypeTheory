@@ -1,10 +1,6 @@
-Require Import UniMath.Foundations.PartB.
-Require Import UniMath.Foundations.PartD.
-Require Import UniMath.Foundations.Propositions.
 Require Import UniMath.Foundations.Sets.
-Require Import UniMath.MoreFoundations.Tactics.
 
-Require Import TypeTheory.Auxiliary.Auxiliary.
+Require Import UniMath.MoreFoundations.Tactics.
 
 Require Import UniMath.CategoryTheory.total2_paths.
 Require Import UniMath.CategoryTheory.Categories.
@@ -17,13 +13,15 @@ Require Import UniMath.CategoryTheory.whiskering.
 Require Import UniMath.CategoryTheory.equivalences.
 Require Import UniMath.CategoryTheory.RightKanExtension.
 Require Import UniMath.CategoryTheory.limits.graphs.limits.
+Require Import UniMath.CategoryTheory.limits.graphs.eqdiag.
 Require Import UniMath.CategoryTheory.limits.pullbacks.
 Require Import UniMath.CategoryTheory.Presheaf.
 Require Import UniMath.CategoryTheory.ElementsOp.
 
-Local Open Scope cat.
+Require Import TypeTheory.Auxiliary.Auxiliary.
+Require Import TypeTheory.ALV1.TypeCat.
 
-Ltac pathvia b := (eapply (@pathscomp0 _ _ b _ )).
+Local Open Scope cat.
 
 Section upstream.
 
@@ -38,20 +36,15 @@ Lemma functor_data_eq_prf {C C' : precategory_ob_mor} (F F' : functor_data C C')
   pr2 F'.
 Proof.
 use funextsec. intros C1. use funextsec. intros C2. use funextsec. intros f.
-    assert (e : transportf (λ x : C → C', ∏ a b : C, a --> b → x a --> x b)
-                           (funextfun (pr1 F) (pr1 F') (λ c : C, H c))
-                           (pr2 F) C1 C2 f =
-                transportf (λ x : C → C', x C1 --> x C2)
-                           (funextfun (pr1 F) (pr1 F') (λ c : C, H c))
-                           ((pr2 F) C1 C2 f)).
-    {
-      induction (funextfun (pr1 F) (pr1 F') (λ c : C, H c)).
-      apply idpath.
-    }
-    rewrite e. clear e.
-    rewrite transport_mor_funextfun.
-    rewrite transport_source_funextfun. rewrite transport_target_funextfun.
-    exact (H1 C1 C2 f).
+assert (e : transportf (λ x : C → C', ∏ a b : C, a --> b → x a --> x b)
+                       (funextfun (pr1 F) (pr1 F') (λ c : C, H c))
+                       (pr2 F) C1 C2 f =
+            transportf (λ x : C → C', x C1 --> x C2)
+                       (funextfun (pr1 F) (pr1 F') (λ c : C, H c))
+                         ((pr2 F) C1 C2 f)).
+{ now induction (funextfun (pr1 F) (pr1 F') (λ c : C, H c)). }
+rewrite e, transport_mor_funextfun, transport_source_funextfun, transport_target_funextfun.
+exact (H1 C1 C2 f).
 Qed.
 
 (* Redefine this so that it is transparent... *)
@@ -62,24 +55,10 @@ Lemma functor_data_eq {C C' : precategory_ob_mor} (F F' : functor_data C C')
                        (transportf (λ x : C', x --> pr1 F C2) (H C1) (pr2 F C1 C2 f)) =
             pr2 F' C1 C2 f) : F = F'.
 Proof.
-  use total2_paths_f.
-  - use funextfun. intros c. exact (H c).
-  - now apply functor_data_eq_prf.
+use total2_paths_f.
+- use funextfun. intros c. exact (H c).
+- now apply functor_data_eq_prf.
 Defined.
-
-Lemma transportf_to_transportb (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
-  px = transportb P e py -> transportf P e px = py.
-Proof.
-intros H.
-now rewrite H; apply transportfbinv.
-Qed.
-
-Lemma transportb_to_transportf (X : UU) (P : X -> UU) (x y : X) (e : x = y) (px : P x) (py : P y) :
-  transportf P e px = py -> px = transportb P e py.
-Proof.
-intros H.
-now rewrite <- H, transportbfinv.
-Qed.
 
 Lemma transportf_PreShv (C : precategory) (F : PreShv C) (x y z : C)
   (e : x = y) (f : C⟦x,z⟧) (u : pr1 (pr1 F z)) :
@@ -144,7 +123,8 @@ Lemma mor_to_el_mor_id {I : C} (ρ : pr1 (pr1 Γ I)) :
   mor_to_el_mor (identity I) ρ =
   transportb (λ X, ∫ Γ⟦X, make_ob I ρ⟧) (make_ob_identity_eq ρ) (identity _).
 Proof.
-apply (transportb_to_transportf _ (λ X : ∫ Γ, ∫ Γ ⟦X,_⟧)), cat_of_elems_mor_eq; simpl.
+apply (@transportf_transpose _ (λ X : ∫ Γ, ∫ Γ ⟦X,_⟧)), cat_of_elems_mor_eq; simpl.
+unfold transportb; rewrite pathsinv0inv0.
 rewrite transportf_total2; simpl; rewrite transportf_make_ob_eq.
 now unfold make_ob_identity_eq; rewrite base_paths_make_ob_eq, idpath_transportf.
 Qed.
@@ -160,7 +140,8 @@ Lemma mor_to_el_mor_comp {I J K} (ρ : pr1 (pr1 Γ I)) (f : C^op⟦I,J⟧) (g : 
   transportb (λ X, ∫ Γ⟦X,_⟧) (make_ob_comp_eq ρ f g)
              (mor_to_el_mor g (# (pr1 Γ) f ρ) · mor_to_el_mor f ρ).
 Proof.
-apply (transportb_to_transportf _ (λ X : ∫ Γ, ∫ Γ ⟦X,_⟧)), cat_of_elems_mor_eq; simpl.
+apply (@transportf_transpose _ (λ X : ∫ Γ, ∫ Γ ⟦X,_⟧)), cat_of_elems_mor_eq; simpl.
+unfold transportb; rewrite pathsinv0inv0.
 rewrite transportf_total2; simpl; rewrite transportf_make_ob_eq.
 now unfold make_ob_comp_eq; rewrite base_paths_make_ob_eq, idpath_transportf.
 Qed.
@@ -185,6 +166,7 @@ use pre_composition_functor.
 - apply functor_opp, (cat_of_elems_on_nat_trans σ).
 Defined.
 
+(** WARNING: Only use this for small C *)
 Lemma is_left_adjoint_subst_functor {Γ Δ : PreShv C} (σ : Δ --> Γ) :
   is_left_adjoint (subst_functor σ).
 Proof.
@@ -193,7 +175,7 @@ Defined.
 
 (** The right adjoint to substitution *)
 Definition π {Γ Δ : PreShv C} (σ : Δ --> Γ) :=
-   right_adjoint (is_left_adjoint_subst_functor σ).
+  right_adjoint (is_left_adjoint_subst_functor σ).
 
 (* TODO: define the left adjoint as well? *)
 
@@ -222,7 +204,6 @@ unfold subst_type_id, functor_eq, functor_data_eq.
 now rewrite !base_total2_paths.
 Qed.
 
-(* TODO: use different order for composition of substitutions? *)
 (** A(σ1 σ2) = (A σ2) σ1 *)
 Lemma subst_type_comp {Γ Δ Θ : PreShv C}
   (σ1 : Θ --> Δ) (σ2 : Δ --> Γ) (A : Γ ⊢) : A⦃σ1 · σ2⦄ = A⦃σ2⦄⦃σ1⦄.
@@ -277,13 +258,15 @@ Defined.
 Local Notation "Γ ⋆ A" := (@ctx_ext Γ A) (at level 30).
 
 (** Context projection *)
-Definition p {Γ : PreShv C} {A : Γ ⊢} : Γ ⋆ A --> Γ.
+Definition ctx_proj {Γ : PreShv C} {A : Γ ⊢} : Γ ⋆ A --> Γ.
 Proof.
 use mk_nat_trans.
 - intros I X.
   apply (pr1 X).
 - now intros I J f; apply funextsec.
 Defined.
+
+Let p {Γ : PreShv C} {A : Γ ⊢} := @ctx_proj Γ A.
 
 (** Note that ctx_ext and p defines one part of the equivalence:
 
@@ -324,8 +307,8 @@ apply subtypeEquality; trivial.
 now intros x; repeat (apply impred; intros); apply setproperty.
 Qed.
 
-(* The last element of the context *)
-Definition q {Γ : PreShv C} {A : Γ ⊢} : Γ ⋆ A ⊢ A⦃p⦄.
+(** The last element of the context, often referred to as q *)
+Definition ctx_last {Γ : PreShv C} {A : Γ ⊢} : Γ ⋆ A ⊢ A⦃p⦄.
 Proof.
 use mkTermIn.
 + intros I ρ.
@@ -333,6 +316,8 @@ use mkTermIn.
 + intros I J f ρ; cbn; apply map_on_two_paths; trivial.
   now apply cat_of_elems_mor_eq.
 Defined.
+
+Let q {Γ : PreShv C} {A : Γ ⊢} := @ctx_last Γ A.
 
 Lemma transportf_term {Γ : PreShv C} (A : Γ ⊢) (a : Γ ⊢ A) (J : C)
   (x y : pr1 (pr1 Γ J)) (e : x = y) :
@@ -371,8 +356,8 @@ use mkTermIn.
 - apply subst_term_prf.
 Defined.
 
-Lemma transportf_TypeIn {Γ : PreShv C} (I : C) (ρ : pr1 (pr1 Γ I)) (A B : Γ ⊢) (e : A = B)
-  (x : pr1 ((pr1 A) (make_ob I ρ))) :
+Lemma transportf_TypeIn {Γ : PreShv C} (I : C) (ρ : pr1 Γ I : hSet) (A B : Γ ⊢) (e : A = B)
+  (x : (pr1 A) (make_ob I ρ) : hSet) :
   transportf (λ x0 : Γ ⊢, pr1 ((pr1 x0) (make_ob I ρ))) e x =
   transportf (λ x0 : hSet, pr1 x0) (eqtohomot (base_paths _ _ (base_paths _ _ e)) (make_ob I ρ)) x.
 Proof.
@@ -392,10 +377,10 @@ Qed.
 Lemma subst_term_id {Γ : PreShv C} {A : Γ ⊢} (a : Γ ⊢ A) :
   subst_term 1 a = transportb TermIn (subst_type_id A) a.
 Proof.
-apply transportb_to_transportf, TermIn_eq.
+apply transportf_transpose, TermIn_eq.
 etrans; [use pr1_transportf|].
 apply funextsec; intro I; apply funextsec; intro ρ.
-rewrite !transportf_forall, transportf_TypeIn.
+rewrite !transportf_forall, transportf_TypeIn, pathsinv0inv0.
 now rewrite base_paths_subst_type_id, toforallpaths_funextsec, idpath_transportf.
 Qed.
 
@@ -403,10 +388,10 @@ Lemma subst_term_comp {Γ Δ Θ : PreShv C} (σ1 : Θ --> Δ) (σ2 : Δ --> Γ) 
   subst_term (σ1 · σ2) a =
   transportb (λ x, Θ ⊢ x) (subst_type_comp σ1 σ2 A) (subst_term σ1 (subst_term σ2 a)).
 Proof.
-apply transportb_to_transportf, TermIn_eq.
+apply transportf_transpose, TermIn_eq.
 etrans; [use pr1_transportf|].
 apply funextsec; intro I; apply funextsec; intro ρ.
-rewrite !transportf_forall, transportf_TypeIn.
+rewrite !transportf_forall, transportf_TypeIn, pathsinv0inv0.
 now rewrite (base_paths_subst_type_comp σ1 σ2 A), toforallpaths_funextsec, idpath_transportf.
 Qed.
 
@@ -447,7 +432,9 @@ apply (nat_trans_eq has_homsets_HSET).
 now intros I; apply funextsec.
 Qed.
 
-(* It is very important that this lemma is proved this way *)
+(* It is very important that this lemma is proved this way as later
+lemmas rely on the shape of the proof (it is crucial that the first
+case after functor_data_eq is proved by idpath) *)
 Lemma subst_type_pair_p {Γ Δ : PreShv C} (σ : Δ --> Γ) {A : Γ ⊢} (a : Δ ⊢ A⦃σ⦄) :
   (A⦃p⦄)⦃subst_pair σ a⦄ = A⦃σ⦄.
 Proof.
@@ -609,7 +596,6 @@ End types.
 
 Section TypeCat.
 
-Require Import TypeTheory.ALV1.TypeCat.
 
 Context (C : precategory) (hsC : has_homsets C).
 
@@ -625,7 +611,7 @@ mkpair.
   exists (λ Γ A, Γ ⋆ A).
   intros Γ A Δ σ.
   exact (A⦃σ⦄).
-- exists (λ Γ A, @p _ Γ A).
+- exists (λ Γ A, @ctx_proj _ Γ A).
   exists (λ Γ A Δ σ, q_gen_mor hsC A σ).
   exists (λ Γ A Δ σ, q_gen_mor_p hsC A σ).
   intros Γ A Δ σ.
@@ -670,10 +656,10 @@ mkpair.
 + exists (PreShv_tt_structure,,PreShv_reindx_structure).
   intros Γ A.
   exists (Γ ⋆ A).
-  apply p.
+  apply ctx_proj.
 + intros Γ A.
   split.
-  * apply q.
+  * apply ctx_last.
   * intros Δ σ a.
     exact (subst_pair hsC σ a).
 Defined.
@@ -702,7 +688,7 @@ mkpair.
   + intros Γ A Δ σ a.
     exists (subst_pair_p hsC σ a).
     pathvia (transportf (λ x, Δ ⊢ x)
-            (subst_type_pair_p hsC σ a) (subst_term hsC (subst_pair hsC σ a) (@q _ hsC _ A))).
+            (subst_type_pair_p hsC σ a) (subst_term hsC (subst_pair hsC σ a) (@ctx_last _ hsC _ A))).
     admit. (* why is this stated so complicated? *)
     apply subst_pair_q.
   + intros Γ A Δ Θ σ1 σ2 a.
