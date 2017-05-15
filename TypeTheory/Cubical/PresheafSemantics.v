@@ -7,7 +7,7 @@ Require Import UniMath.MoreFoundations.Tactics.
 Require Import TypeTheory.Auxiliary.Auxiliary.
 
 Require Import UniMath.CategoryTheory.total2_paths.
-Require Import UniMath.CategoryTheory.precategories.
+Require Import UniMath.CategoryTheory.Categories.
 Require Import UniMath.CategoryTheory.functor_categories.
 Require Import UniMath.CategoryTheory.Adjunctions.
 Require Import UniMath.CategoryTheory.category_hset.
@@ -618,7 +618,7 @@ Local Notation "Γ ⊢ A" := (@TermIn _ Γ A) (at level 50).
 Local Notation "A ⦃ s ⦄" := (subst_type hsC A s) (at level 40, format "A ⦃ s ⦄").
 Local Notation "Γ ⋆ A" := (@ctx_ext _ Γ A) (at level 30).
 
-Definition PreShv_TypeCat : type_cat_struct (PreShv C).
+Definition PreShv_TypeCat : typecat_structure (PreShv C).
 Proof.
 mkpair.
 - exists (λ Γ, Γ ⊢).
@@ -629,7 +629,9 @@ mkpair.
   exists (λ Γ A Δ σ, q_gen_mor hsC A σ).
   exists (λ Γ A Δ σ, q_gen_mor_p hsC A σ).
   intros Γ A Δ σ.
-  exact (isPullback_q_gen_mor hsC A σ).
+  apply is_symmetric_isPullback.
+  + apply (functor_category_has_homsets C^op).
+  + exact (isPullback_q_gen_mor hsC A σ).
 Defined.
 
 End TypeCat.
