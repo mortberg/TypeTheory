@@ -1,3 +1,14 @@
+(**
+
+This files proves that presheaves on a category C (contravariant
+functors into HSET) forms a type category. As the collection of types
+in context Γ don't form an hset it is not possible to instantiate the
+CwF structure, however all of the other axioms of a CwF have been
+formalized.
+
+Written by: Anders Mörtberg, 2017
+
+*)
 Require Import UniMath.Foundations.Sets.
 
 Require Import UniMath.MoreFoundations.Tactics.
@@ -374,6 +385,7 @@ Proof.
 now induction e.
 Qed.
 
+(** a1 = a *)
 Lemma subst_term_id {Γ : PreShv C} {A : Γ ⊢} (a : Γ ⊢ A) :
   subst_term 1 a = transportb TermIn (subst_type_id A) a.
 Proof.
@@ -384,6 +396,7 @@ rewrite !transportf_forall, transportf_TypeIn, pathsinv0inv0.
 now rewrite base_paths_subst_type_id, toforallpaths_funextsec, idpath_transportf.
 Qed.
 
+(** a(σ1 σ2) = (a σ2)σ1 *)
 Lemma subst_term_comp {Γ Δ Θ : PreShv C} (σ1 : Θ --> Δ) (σ2 : Δ --> Γ) {A : Γ ⊢} (a : Γ ⊢ A) :
   subst_term (σ1 · σ2) a =
   transportb (λ x, Θ ⊢ x) (subst_type_comp σ1 σ2 A) (subst_term σ1 (subst_term σ2 a)).
@@ -473,17 +486,47 @@ rewrite !transportf_forall, transportf_TypeIn.
 now rewrite (base_paths_subst_type_pair_p σ a), toforallpaths_funextsec, idpath_transportf.
 Qed.
 
-(* TODO: prove this *)
+(** σ2(σ1,a) = (σ2 σ1,a σ2) *)
 Lemma subst_pair_subst {Γ Δ Θ : PreShv C} (σ1 : Δ --> Γ) (σ2 : Θ --> Δ)
   {A : Γ ⊢} (a : Δ ⊢ A⦃σ1⦄) :
   σ2 · subst_pair σ1 a =
   subst_pair (σ2 · σ1) (transportb (λ x : Θ ⊢, Θ ⊢ x) (subst_type_comp σ2 σ1 A) (subst_term σ2 a)).
-Admitted.
-(* Proof. *)
-(* apply (nat_trans_eq has_homsets_HSET); simpl; intros I. *)
-(* apply funextsec; intro ρ. *)
-(* apply pair_path_in2, pathsinv0. *)
-(* Admitted. *)
+Proof.
+apply (nat_trans_eq has_homsets_HSET); simpl; intros I.
+apply funextsec; intro ρ.
+apply pair_path_in2.
+unfold transportb.
+match goal with |[ |- _ = pr1 (transportf _ ?p ?x) _ _ ] => set (X := x); set (P := p) end.
+transparent assert (BB : (∏ a : Θ ⊢, UU)).
+intros.
+apply (∏ (I : C) (ρ : pr1 ((pr1 Θ) I)), pr1 ((pr1 a0) (make_ob I ρ))).
+transparent assert (CC : (∏ a : [(∫ Θ)^op, HSET, has_homsets_HSET], BB a → UU)).
+intros a0 b0.
+apply (∏ (I J : C) (f : C ⟦ J, I ⟧) (ρ : pr1 ((pr1 Θ) I)),
+       # (pr1 (a0)) (mor_to_el_mor f ρ) (b0 I ρ) = b0 J (# (pr1 Θ) f ρ)).
+generalize (@transportf_total2 _ BB CC _ _ P X).
+intros XX.
+assert ((transportf (λ x, Θ ⊢ x) P X) =
+        transportf (λ x : Θ ⊢, ∑ y : BB x, CC x y) P X).
+apply idpath.
+apply pathsinv0.
+etrans.
+apply (eqtohomot (eqtohomot (maponpaths pr1 X0) I) ρ).
+rewrite XX.
+simpl.
+clear XX X0 CC.
+unfold BB; clear BB.
+rewrite !transportf_forall.
+apply pathsinv0.
+apply (@transportf_transpose _ (λ x : opp_precat_data (cat_of_elems_data Θ) ⟶ hset_precategory_data, pr1 ((pr1 x) (make_ob I ρ))) _ _ P).
+unfold transportb, P.
+rewrite pathsinv0inv0.
+etrans.
+apply (transportf_TypeIn I ρ _ _ (subst_type_comp σ2 σ1 A) (pr1 a I (pr1 σ2 I ρ))).
+rewrite base_paths_subst_type_comp.
+rewrite toforallpaths_funextsec.
+now rewrite idpath_transportf.
+Qed.
 
 (* (p,q) = 1 *)
 Lemma subst_pair_id {Γ : PreShv C} {A : Γ ⊢} : subst_pair (A:=A) p q = 1.
@@ -570,18 +613,14 @@ intros I.
 use isPullback_HSET.
 intros a b eq.
 use unique_exists.
-- cbn in *.
-  exists b.
+- exists b; cbn in *.
   apply (transportf (λ x, pr1 (A (make_ob I x))) eq (pr2 a)).
 - split; trivial; simpl.
   use total2_paths_f.
   + apply (!eq).
   + now cbn; rewrite transport_f_f, pathsinv0r, idpath_transportf.
 - intros ρ.
-  apply isapropdirprod, setproperty.
-  assert (H : isaset (pr1 (pr1 (Γ ⋆ A) I))).
-  { apply setproperty. }
-  apply H.
+  now apply isapropdirprod; apply setproperty.
 - simpl; intros [x1 x2] [h1 h2].
   use total2_paths_f.
   + apply h2.
@@ -619,6 +658,11 @@ mkpair.
   + apply (functor_category_has_homsets C^op).
   + exact (isPullback_q_gen_mor hsC A σ).
 Defined.
+
+Require Import TypeTheory.OtherDefs.TypeCat_to_CwF_Pitts.
+
+Check comp_law_3_of_typecat.
+
 
 End TypeCat.
 
@@ -676,7 +720,7 @@ mkpair.
   + intros Γ A a.
     apply (subst_term_id hsC a).
   + intros Γ Δ Θ σ1 σ2 A a.
-    exact (subst_term_comp hsC σ2 σ1 a). (* why is this slow? *)
+    exact (subst_term_comp hsC σ2 σ1 a). 
 Defined.
 
 Definition PreShv_CwF : cwf_struct (PreShv C).
@@ -692,8 +736,7 @@ mkpair.
     admit. (* why is this stated so complicated? *)
     apply subst_pair_q.
   + intros Γ A Δ Θ σ1 σ2 a.
-    admit. (* haven't proved yet *)
-    (* exact (subst_pair_subst hsC σ1 σ2 a). *)
+    exact (subst_pair_subst hsC σ1 σ2 a).
   + intros Γ A.
     apply (@subst_pair_id C hsC Γ A).
 - repeat split.
