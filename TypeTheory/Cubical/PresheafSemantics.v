@@ -666,7 +666,7 @@ Check comp_law_3_of_typecat.
 
 End TypeCat.
 
-
+(** Failed attempt to instantiate CwF structure *)
 Section CwF.
 
 Require Import TypeTheory.OtherDefs.CwF_Pitts.
@@ -723,31 +723,32 @@ mkpair.
     exact (subst_term_comp hsC σ2 σ1 a). 
 Defined.
 
-Definition PreShv_CwF : cwf_struct (PreShv C).
-Proof.
-exists PreShv_tt_reindx_type_struct.
-mkpair.
-- exists PreShv_reindx_laws.
-  repeat split.
-  + intros Γ A Δ σ a.
-    exists (subst_pair_p hsC σ a).
-    pathvia (transportf (λ x, Δ ⊢ x)
-            (subst_type_pair_p hsC σ a) (subst_term hsC (subst_pair hsC σ a) (@ctx_last _ hsC _ A))).
-    admit. (* why is this stated so complicated? *)
-    apply subst_pair_q.
-  + intros Γ A Δ Θ σ1 σ2 a.
-    exact (subst_pair_subst hsC σ1 σ2 a).
-  + intros Γ A.
-    apply (@subst_pair_id C hsC Γ A).
-- repeat split.
-  + apply (functor_category_has_homsets C^op HSET has_homsets_HSET).
-  + intros Γ.
-    admit. (* this is not provable! *)
-  + intros Γ A.
-    use isaset_total2.
-    * repeat (apply impred_isaset; intro); apply setproperty.
-    * intros a; repeat (apply impred_isaset; intro).
-      apply isasetaprop, setproperty.
-Admitted.
+(* This is commented as we cannot complete it *)
+(* Definition PreShv_CwF : cwf_struct (PreShv C). *)
+(* Proof. *)
+(* exists PreShv_tt_reindx_type_struct. *)
+(* mkpair. *)
+(* - exists PreShv_reindx_laws. *)
+(*   repeat split. *)
+(*   + intros Γ A Δ σ a. *)
+(*     exists (subst_pair_p hsC σ a). *)
+(*     pathvia (transportf (λ x, Δ ⊢ x) *)
+(*             (subst_type_pair_p hsC σ a) (subst_term hsC (subst_pair hsC σ a) (@ctx_last _ hsC _ A))). *)
+(*     admit. (* this should be provable, but painful *) *)
+(*     apply subst_pair_q. *)
+(*   + intros Γ A Δ Θ σ1 σ2 a. *)
+(*     exact (subst_pair_subst hsC σ1 σ2 a). *)
+(*   + intros Γ A. *)
+(*     apply (@subst_pair_id C hsC Γ A). *)
+(* - repeat split. *)
+(*   + apply (functor_category_has_homsets C^op HSET has_homsets_HSET). *)
+(*   + intros Γ. *)
+(*     admit. (* this is not provable! *) *)
+(*   + intros Γ A. *)
+(*     use isaset_total2. *)
+(*     * repeat (apply impred_isaset; intro); apply setproperty. *)
+(*     * intros a; repeat (apply impred_isaset; intro). *)
+(*       apply isasetaprop, setproperty. *)
+(* Admitted. *)
 
 End CwF.
