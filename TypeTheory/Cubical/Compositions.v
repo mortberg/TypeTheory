@@ -214,6 +214,26 @@ Context (Hpe₁ : nat_trans_comp e₁ p_F = nat_trans_id Id).
 (* We further assume that the naturality squares for e₀ are pullbacks *)
 Context {e₀_pb : ∏ I J (f : J --> I), isPullback (nat_trans_ax e₀ _ _ f)}.
 
+(* We could also assume that the naturality squares of p_F are
+   pullbacks. This should be a consequence if there is an interval
+   presheaf in PreShv(C) *)
+Lemma isPullback_pF_e₀ I J (f : J --> I) :
+  isPullback (nat_trans_ax p_F _ _ f) → isPullback (nat_trans_ax e₀ _ _ f).
+Proof.
+intros H.
+apply (isPullback_two_pullback hsC _ _ _ _ _ _ H).
+intros K g h Hgh.
+use (unique_exists h); simpl in *.
+- rewrite <- Hgh.
+  set (HI := nat_trans_eq_pointwise Hpe₀ I).
+  set (HJ := nat_trans_eq_pointwise Hpe₀ J); cbn in HI, HJ.
+  now rewrite HI, HJ, !id_right.
+- now intros HH; apply isapropdirprod; apply hsC.
+- intros h' [H1 H2].
+  rewrite <- H2.
+  set (HH := nat_trans_eq_pointwise Hpe₀ J); cbn in HH.
+  now rewrite HH, id_right.
+Qed.
 
 (* We also assume a conjunction map m : F^2 -> F satisfying: *)
 (* m e0 = e0 p *)
@@ -223,7 +243,6 @@ Context {e₀_pb : ∏ I J (f : J --> I), isPullback (nat_trans_ax e₀ _ _ f)}.
 (* p m = p p *)
 
 (* Some of these equations are not necessary so they are commented *)
-
 Context (m : F ∙ F ⟹ F).
 (* Context (He₀m : nat_trans_comp (post_whisker e₀ F) m = nat_trans_comp p_F e₀). *)
 (* Context (He₀m' : nat_trans_comp (pre_whisker F e₀) m = nat_trans_comp p_F e₀). *)
