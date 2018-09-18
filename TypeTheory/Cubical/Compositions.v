@@ -47,12 +47,6 @@ Local Notation "f '××' g" :=
 Local Notation "1" := Terminal_PreShv.
 Local Notation "'Id'" := (functor_identity _).
 
-Let p {Γ : PreShv C} {A : Γ ⊢} := @ctx_proj _ _ A.
-
-(* Why is the formatting not working for this notation: *)
-Local Notation "C ⟦ a , b ⟧" :=
-  (precategory_morphisms (C:=C) a b) (format "C ⟦ a , b ⟧", at level 50) : cat.
-
 Definition binprod_delta x : x --> x ⊗ x := BinProductArrow _ _ (identity x) (identity x).
 Local Notation "'δ'" := (binprod_delta _).
 
@@ -133,13 +127,13 @@ Qed.
 Definition ctx_restrict (Γ : PreShv C) (φ : Γ --> FF) : PreShv C.
 Proof.
 use mk_functor.
-- mkpair.
+- use tpair.
   + simpl; intros I.
     exists (∑ ρ : pr1 ((pr1 Γ) I), pr1 φ I ρ = FF1).
     abstract (apply isaset_total2; [ apply setproperty
                                    | intros ρ; apply isasetaprop, setproperty ]).
   + simpl; intros I J f ρ.
-    mkpair.
+    use tpair.
     * apply (# (pr1 Γ) f (pr1 ρ)).
     * abstract (
         etrans; [apply (eqtohomot (nat_trans_ax φ _ _ f) (pr1 ρ))|]; cbn;
@@ -160,8 +154,7 @@ Local Notation "Γ , φ" := (ctx_restrict Γ φ) (at level 30, format "Γ , φ")
 Definition ι {Γ : PreShv C} {φ : Γ --> FF} : Γ,φ --> Γ.
 Proof.
 use mk_nat_trans.
-- simpl; intros I.
-  apply pr1.
+- simpl; intros I; cbn; apply pr1.
 - intros I J f; apply idpath.
 Defined.
 
@@ -381,10 +374,10 @@ Qed.
 
 (* Introduce δ₀ which classifies e₀_PreShv *)
 Context (δ₀ : ∏ I, yon (I +) --> FF).
-Context (Hδ₀ : ∏ I, e₀_PreShv I · δ₀ I = TerminalArrow _ · true).
+Context (Hδ₀ : ∏ I, e₀_PreShv I · δ₀ I = TerminalArrow _ _ · true).
 Context (Hδ₀_pb : ∏ I, isPullback (Hδ₀ I)).
 Context (Hδ₀_unique : ∏ (I : C) (d0 : yon (I+) --> FF)
-                        (Hd0 : e₀_PreShv I · d0 = TerminalArrow _ · true),
+                        (Hd0 : e₀_PreShv I · d0 = TerminalArrow _ _ · true),
                         isPullback Hd0 → d0 = δ₀ I).
 
 (* TODO: generalize the rest so that it works in both directions *)
@@ -452,7 +445,7 @@ now apply e₀_pb.
 Qed.
 
 Lemma glued_square {I J} (f : J --> I) :
-  e₀_PreShv J · (# yon (# F f) · δ₀ I) = # yon f · TerminalArrow (yon I) · true.
+  e₀_PreShv J · (# yon (# F f) · δ₀ I) = # yon f · TerminalArrow _ (yon I) · true.
 Proof.
 exact (glueSquares (Hδ₀ I) (e₀_f f)).
 Defined.
@@ -466,7 +459,7 @@ apply isPullbackGluedSquare.
 Qed.
 
 Lemma plus_δ₀_prf {I J} (f : J --> I) :
-  e₀_PreShv J · (# yon (# F f) · δ₀ I) = TerminalArrow (yon J) · true.
+  e₀_PreShv J · (# yon (# F f) · δ₀ I) = TerminalArrow _ (yon J) · true.
 Proof.
 etrans; [apply glued_square|].
 apply cancel_postcomposition, TerminalArrowUnique.
