@@ -226,7 +226,13 @@ Local Notation "1" := TV.
 (* TODO: add coercion *)
 (* Assume that there is a functor to glue along (this is an
    abstraction over the global section functor) *)
+
+(* What I need is that for each object X of C there is a set
+   C(1,X). But I think it also really has to be a functor... *)
 Context (F : functor (pr1 C) (pr1 Vset)).
+
+(* F has to preserve the terminal object *)
+Context (HF : iso TV (F (pr12 C))).
 
 (* Now the define the glue category of F *)
 Definition glue : precategory.
@@ -260,6 +266,29 @@ use mk_precategory.
   * now rewrite !assoc.
 Defined.
 
+Definition TG : Terminal glue.
+Proof.
+use mk_Terminal.
++ exists TV.
+  exists (pr12 C).
+  exact (pr1 HF).
++
+ intros g.
+simpl.
+use unique_exists.
+split.
+apply TerminalArrow.
+apply TerminalArrow.
+apply pathsinv0.
+apply iso_inv_to_right, pathsinv0.
+apply TerminalArrowUnique.
+intros X.
+simpl.
+apply (pr22 V).
+simpl.
+intros X HX.
+use total2_paths_f; apply TerminalArrowUnique.
+Defined.
 
 
 End gluing.
