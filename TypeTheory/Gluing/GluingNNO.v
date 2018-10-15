@@ -239,13 +239,13 @@ Definition glue : precategory.
 Proof.
 use mk_precategory.
 - use tpair.
-  + exists (∑ (x : V) (a : pr1 C), V⟦x,F a⟧).
+  + exists (∑ (xa : V × pr1 C), V⟦pr1 xa,F (pr2 xa)⟧).
     intros XAα YBβ.
-    exact (∑ (f01 : V⟦pr1 XAα,pr1 YBβ⟧ × pr1 C⟦pr12 XAα, pr12 YBβ⟧),
-             pr22 XAα · # F (pr2 f01) = (pr1 f01) · pr22 YBβ).
+    exact (∑ (f01 : V⟦pr11 XAα,pr11 YBβ⟧ × pr1 C⟦pr21 XAα, pr21 YBβ⟧),
+             pr2 XAα · # F (pr2 f01) = (pr1 f01) · pr2 YBβ).
   + split; cbn.
     * intros XAα.
-      exists (identity (pr1 XAα),,identity (pr12 XAα)); simpl.
+      exists (identity (pr11 XAα),,identity (pr21 XAα)); simpl.
       abstract (now rewrite functor_id, id_left, id_right).
     * intros XAα1 XAα2 XAα3 f0 f1.
       exists (compose (pr11 f0) (pr11 f1),,compose (pr21 f0) (pr21 f1)); simpl.
@@ -254,23 +254,37 @@ use mk_precategory.
 - split; [split|]; simpl.
 + intros.
   apply subtypeEquality; simpl.
-  * intros H; apply (pr22 V).
+  * intros H; apply isaset_mor.
   * now rewrite !id_left.
 + intros.
   apply subtypeEquality; simpl.
-  * intros H; apply (pr22 V).
+  * intros H; apply isaset_mor.
   * now rewrite !id_right.
 + intros.
   apply subtypeEquality; simpl.
-  * intros H; apply (pr22 V).
+  * intros H; apply isaset_mor.
   * now rewrite !assoc.
+Defined.
+
+Definition gluesetcat : setcategory.
+Proof.
+exists glue.
+split.
+- use isaset_total2.
+  (* TODO: use the proper projections! *)
+  + apply isaset_dirprod; [ apply (pr2 V) | apply (pr21 C) ].
+  + intros [x a]; apply isaset_mor. 
+- intros a b.
+  use isaset_total2.
+  (* TODO: use the proper projections! *)
+  + apply isaset_dirprod; [ apply isaset_mor | apply (pr21 C) ].
+  + intros [x f]; apply isasetaprop, isaset_mor.
 Defined.
 
 Definition TG : Terminal glue.
 Proof.
 use mk_Terminal.
-+ exists TV.
-  exists (pr12 C).
++ exists (pr1 TV,,pr112 C).
   exact (pr1 HF).
 +
  intros g.
@@ -290,5 +304,29 @@ intros X HX.
 use total2_paths_f; apply TerminalArrowUnique.
 Defined.
 
+(* We now construct the NNO in G(F) *)
+Definition NNOG : NNO TG.
+Admitted.
+
+Definition GF : setcatNNOc := (gluesetcat,,TG,,NNOG).
+
+Definition G : setcatNNOc ⟦C,GF⟧.
+Proof.
+apply (InitialArrow (_,,IC)).
+Defined.
+
+(* Define S^n(0) *)
+Definition iter (n : nat) : pr1 C⟦pr12 C,pr22 C⟧.
+Proof.
+induction n as [|_ IHn].
+- apply zeroNNO.
+- exact (IHn · sucNNO _ _).
+Defined.
+
+(* The main theorem *)
+Theorem can : forall (t : pr1 C⟦pr12 C,pr22 C⟧), ∃ k : nat, iter k = t.
+Proof.
+intros t.
+Admitted.
 
 End gluing.
