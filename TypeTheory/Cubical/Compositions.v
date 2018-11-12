@@ -40,7 +40,7 @@ Local Notation "Γ ⊢ A" := (@TermIn _ Γ A) (at level 50).
 Local Notation "A ⦃ s ⦄" := (subst_type hsC A s) (at level 40, format "A ⦃ s ⦄").
 Local Notation "Γ ⋆ A" := (@ctx_ext _ Γ A) (at level 30).
 Local Notation "c '⊗' d" :=
-  (BinProductObject _ (@BinProducts_PreShv C c d)) (at level 30) : cat.
+  (BinProductObject _ (@BinProducts_PreShv C c d)) : cat.
 Local Notation "f '××' g" :=
   (BinProductOfArrows _ (BinProducts_PreShv _ _) (BinProducts_PreShv _ _) f g)
   (at level 90) : cat.
