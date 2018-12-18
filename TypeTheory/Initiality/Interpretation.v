@@ -575,11 +575,12 @@ a little more work to state. *)
           (type_of ∘ E) (idmap_raw_context n)).
   Proof.
     apply mk_leq_partial'; cbn; intros _.
-    use tpair.
-    - intros i; repeat constructor.
-    - apply funextfun; intros i.
-      apply (maponpaths (tpair _)).
-      apply tm_transportf_idpath.
+    abstract (
+    use tpair;
+    [ intros i; repeat constructor
+    | apply funextfun; intros i;
+      apply (maponpaths (tpair _));
+      apply tm_transportf_idpath]).
   Defined.
 
   Definition partial_interpretation_add_to_raw_context_map
@@ -614,7 +615,7 @@ a little more work to state. *)
     eapply leq_partial_trans.
     2: { eapply bind_leq_partial_1, partial_interpretation_idmap_raw_context. }
     refine (pr2 (bind_return_partial _ _)).
-  Defined.
+  Qed.
 
   Lemma partial_interpretation_weaken_raw_context_map
       {X} {m n:nat} (E : environment X m) (A : n -> C X) (B : C X)
@@ -816,7 +817,7 @@ a little more work to state. *)
     - eapply pathscomp0. apply leq_partial_commutes.
       cbn. eapply pathscomp0. 2: { apply pathsinv0, reind_tm_var_typecat. }
       apply tm_transportf_irrelevant.
-  Defined.
+  Qed.
 
   Definition reind_partial_interpretation_subst_ty
       {X Y} (f : Y --> X)
@@ -975,8 +976,9 @@ Section Totality.
     intros ? ? ? H_Γi.
     intros X E Γi_interpretable.
     refine (_,,tt); cbn.
-    eapply pathscomp0. { apply pathsinv0, typed_environment_respects_types. }
-    apply maponpaths, propproperty.
+    abstract (
+    eapply pathscomp0; [ apply pathsinv0, typed_environment_respects_types|];
+    apply maponpaths, propproperty).
   Defined.
 
   Local Lemma interpret_equiv_rel_rules
@@ -995,7 +997,7 @@ Section Totality.
       apply pathsinv0; use p_aa'. 
     - intros ? ? ? ? ? ? ? ? p1 ? ? ? p01 ? p12 ? ? ? ? ?.
       eapply pathscomp0; [ use p01 | use p12 ]. use p1.
-  Defined.
+  Qed.
 
   Local Lemma interpret_conv_rules
     : cases_for_conv_rules (fun J _ => is_interpretable J).
@@ -1016,7 +1018,7 @@ Section Totality.
              evaluate p = evaluate p')
         _ (p_aa' _ _ (p_A _ E))).
       simple refine (p_AA' _ _ _ _).
-  Defined.
+  Qed.
 
   Local Lemma interpret_universe_rules
     : cases_for_universe_rules (fun J _ => is_interpretable J).
@@ -1032,7 +1034,7 @@ Section Totality.
       intros; intros X E d_a d_a'.
       cbn; apply maponpaths.
       use p_aa'; exact tt.
-  Defined.
+  Qed.
 
   Section Pi_Rules.
   (** We break out the interpretation of the pi-type rules as lemmas,
@@ -1119,7 +1121,7 @@ Section Totality.
                        (reind_partial_interpretation_subst_ty _ _ _ _) _ _).
            apply tm_as_raw_context_map_tracks_environments. }
       (* Step 3: apply the semantic pi-comp, modulo a little wrangling transports *)
-      cbn. eapply maponpaths, pathscomp0.
+      cbn; eapply maponpaths, pathscomp0.
       { eapply (maponpaths (fun t => pi_app Π _ _ _ t _)).
         apply tm_transportf_idpath_gen. }
       apply pi_comp.

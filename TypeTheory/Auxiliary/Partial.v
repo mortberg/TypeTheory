@@ -44,7 +44,7 @@ Section Ordering.
     : leq_partial x x'.
   Proof.
     exists (fun x_def => pr1 (H x_def)).
-    exact (fun x_def => pr2 (H x_def)).
+    abstract (exact (fun x_def => pr2 (H x_def))).
   Defined.
 
   (* TODO: consider naming. *)
@@ -52,13 +52,14 @@ Section Ordering.
       (x_def : is_defined x)
     : ∑ (x'_def : is_defined x'), evaluate x'_def = evaluate x_def.
   Proof.
-    exists (l x_def). apply leq_partial_commutes.
+    exists (l x_def).
+    abstract (apply leq_partial_commutes).
   Defined.
 
   Definition leq_partial_refl {X} (x : partial X)
     : leq_partial x x.
   Proof.
-    exists (fun i => i); intros; apply idpath.
+    exists (fun i => i); abstract (intros; apply idpath).
   Defined.
 
   Definition leq_partial_of_path {X} (x x' : partial X)
@@ -72,7 +73,7 @@ Section Ordering.
     : leq_partial x0 x2.
   Proof.
     exists (fun x0_def => l12 (l01 x0_def)).
-    intros x_def. eauto using pathscomp0, leq_partial_commutes.
+    abstract (intros x_def; eauto using pathscomp0, leq_partial_commutes).
   Defined.
 
 End Ordering.
@@ -101,13 +102,18 @@ This extends the order relation, and is reflexive and symmetric, but not in gene
   Qed.
 
   Definition compat_of_leq_partial {X} {x y : partial X}
-    : leq_partial x y -> compat_partial x y
-  := fun l x_def y_def =>
-    ( ! leq_partial_commutes l _ @ compat_partial_refl _ _ _).
-
+    : leq_partial x y -> compat_partial x y.
+  Proof.
+    intros l x_def y_def.
+    exact (! leq_partial_commutes l _ @ compat_partial_refl _ _ _).
+  Qed.
+  
   Definition compat_partial_sym {X} (x y : partial X)
-    : compat_partial x y -> compat_partial y x
-  := fun H y_def x_def => (! H x_def y_def).
+    : compat_partial x y -> compat_partial y x.
+  Proof.
+    intros H y_def x_def.
+    exact (! H x_def y_def).
+  Qed.
 
 End Compatibility.
 
@@ -122,32 +128,32 @@ Section Functor.
     : leq_partial (fmap_partial f x) (fmap_partial f x').
   Proof.
     exists l.
-    intros x_def; cbn. apply maponpaths, leq_partial_commutes.
+    abstract (intros x_def; cbn; apply maponpaths, leq_partial_commutes).
   Defined.
 
   Lemma fmap_compose_partial {X Y Z : UU} (f : X -> Y) (g : Y -> Z)
       : fmap_partial g ∘ fmap_partial f = fmap_partial (g ∘ f).
   Proof.
     apply idpath.
-  Defined.
+  Qed.
 
   Lemma fmap_compose_partial_applied {X Y Z : UU} (f : X -> Y) (g : Y -> Z)
       : fmap_partial g ∘ fmap_partial f ~ fmap_partial (g ∘ f).
   Proof.
     apply toforallpaths, fmap_compose_partial.
-  Defined.
+  Qed.
 
   Lemma fmap_idmap_partial (X : UU)
       : fmap_partial (idfun X) = idfun _.
   Proof.
     apply idpath.
-  Defined.
+  Qed.
 
   Lemma fmap_idmap_partial_applied {X : UU} x
       : fmap_partial (idfun X) x = x.
   Proof.
     exact (toforallpaths _ _ _ (fmap_idmap_partial X) x).
-  Defined.
+  Qed.
 
 End Functor.
 
@@ -163,14 +169,14 @@ Section Monad.
     : leq_partial (return_partial x) y.
   Proof.
     exists (fun _ => y_def).
-    intros ?; apply e_x_y.
+    abstract (intros ?; apply e_x_y).
   Defined.
 
   Lemma fmap_return_partial {X Y} (f : X -> Y) (x : X)
     : fmap_partial f (return_partial x) = return_partial (f x).
   Proof.
     apply idpath.
-  Defined.
+  Qed.
 
   Definition multiply_partial {X} (x : partial (partial X)) : partial X
   := make_partial
@@ -187,10 +193,10 @@ Section Monad.
     - exists (l H).
       refine (transportb is_defined _ H'). 
       apply leq_partial_commutes.
-    - cbn.
-      generalize (leq_partial_commutes l H : evaluate (l H) = _) as e.
-      generalize (evaluate (l H)) as lx.
-      intros lx e; destruct e. apply idpath.
+    - abstract (cbn;
+      generalize (leq_partial_commutes l H : evaluate (l H) = _) as e;
+      generalize (evaluate (l H)) as lx;
+      intros lx e; destruct e; apply idpath).
   Defined.
 
   Definition multiply_leq_partial_2
@@ -203,7 +209,7 @@ Section Monad.
     use tpair.
     - exists (l0 x_def).
       apply l1, x_def'.
-    - cbn; apply leq_partial_commutes.
+    - abstract (cbn; apply leq_partial_commutes).
   Defined.
 
   Definition bind_partial {X Y} (x : partial X) (f : X -> partial Y)
@@ -215,7 +221,7 @@ Section Monad.
     : leq_partial (bind_partial x f) (bind_partial x' f).
   Proof.
     eauto using multiply_leq_partial, fmap_leq_partial.
-  Defined.
+  Qed.
 
   Definition bind_leq_partial_2
       {X Y} x {f g : X -> partial Y} (l : forall x, leq_partial (f x) (g x))
@@ -223,7 +229,7 @@ Section Monad.
   Proof.
     simple refine (multiply_leq_partial_2 _ _). { exact (fun i => i). }
     intros x_def; apply l.
-  Defined.
+  Qed.
 
   Definition bind_leq_partial
       {X Y} {x x'} (lx : leq_partial x x')
@@ -231,7 +237,7 @@ Section Monad.
     : leq_partial (bind_partial x f) (bind_partial x' g).
   Proof.
     eauto using leq_partial_trans, bind_leq_partial_1, bind_leq_partial_2.
-  Defined.
+  Qed.
 
   (* TODO: upstream. Naming alternative: [show_bind_leq_partial] *)
   Lemma bind_partial_as_sup {X Y} {x : partial X} (f : X -> partial Y)
@@ -240,8 +246,8 @@ Section Monad.
     : leq_partial (bind_partial x f) y.
   Proof.
     exists (fun fx_def => H (pr1 fx_def) (pr2 fx_def)).
-    intros x_def. apply (leq_partial_commutes (H _)).
-  Defined.
+    abstract (intros x_def; apply (leq_partial_commutes (H _))).
+  Qed.
  
   (* TODO: upstream *)
   Lemma leq_bind_partial {X Y} {x : partial X} (f : X -> partial Y)
@@ -249,7 +255,7 @@ Section Monad.
     : leq_partial (f (evaluate x_def)) (bind_partial x f).
   Proof.
     exists (fun fx_def => (x_def,,fx_def)).
-    intros; apply idpath.
+    abstract (intros; apply idpath).
   Defined.
 
   Definition compat_bind_partial {X Y}
@@ -260,7 +266,7 @@ Section Monad.
     intros [x_def y_def] [x'_def y'_def].
     cbn in *. destruct (c_x x_def x'_def).
     apply c_y.
-  Defined.
+  Qed.
 
   (** Slight generalisation of [compat_bind_partial]. *)
   Definition compat_bind_partial' {X Y}
@@ -273,7 +279,7 @@ Section Monad.
     intros [x_def y_def] [x'_def y'_def].
     cbn in *. destruct (c_x x_def x'_def).
     apply c_y.
-  Defined.
+  Qed.
 
   Lemma fmap_bind_partial
       {X Y Z} (x : partial X) (f : X -> partial Y) (g : Y -> Z)
@@ -281,7 +287,7 @@ Section Monad.
     = bind_partial x (fmap_partial g ∘ f).
   Proof.
     apply idpath.
-  Defined.
+  Qed.
 
   (** Note: under prop univalence, is equality; but we avoid relying on this. *)
   Lemma bind_return_partial {X Y : UU} (x : X) (f : X -> partial Y)
@@ -293,7 +299,7 @@ Section Monad.
       intros; apply idpath.
     - exists (fun x_def => (tt,,x_def)).
       intros; apply idpath.
-  Defined.
+  Qed.
 
   (** Note: under prop univalence, is equality; but we avoid relying on this. *)
   Lemma bind_with_return_partial {X Y : UU} (x : partial X) (f : X -> Y)
@@ -305,14 +311,14 @@ Section Monad.
       intros; apply idpath.
     - exists (fun x_def => (x_def,,tt)).
       intros; apply idpath.
-  Defined.
+  Qed.
 
   Lemma bind_fmap_partial_1
       {X Y Z} {x : partial X} (f : X -> Y) (g : Y -> partial Z)
     : bind_partial (fmap_partial f x) g = bind_partial x (g ∘ f).
   Proof.
     apply idpath.
-  Defined.
+  Qed.
 
   Definition assume_partial {X} (P : hProp) (x : P -> partial X) : partial X.
   Proof.
@@ -328,7 +334,7 @@ Section Monad.
     apply mk_leq_partial'. intros [i x_def].
     exists (f i,, l i x_def); cbn.
     apply leq_partial_commutes.
-  Defined.
+  Qed.
 
   Definition assume_leq_partial
       {X} {P : hProp}
@@ -342,7 +348,7 @@ Section Monad.
   Proof.
     use tpair.
     - intros [Hp x_def]. exact (l Hp x_def).
-    - cbn. intros. apply leq_partial_commutes.
+    - abstract (cbn; intros; apply leq_partial_commutes).
   Defined.
 
   Lemma fmap_assume_partial {X Y} (f : X -> Y) {p:hProp} {x : p -> partial X}
@@ -350,7 +356,7 @@ Section Monad.
       = assume_partial p (fmap_partial f ∘ x).
   Proof.
     apply idpath.
-  Defined.
+  Qed.
 
 End Monad.
 
@@ -377,7 +383,7 @@ Section Various.
     apply mk_leq_partial'. intros fs_def.
     use tpair.
     - intros x; exact (l x (fs_def x)).
-    - apply funextsec; intros x. apply leq_partial_commutes.
+    - abstract (apply funextsec; intros x; apply leq_partial_commutes).
   Defined.
 
 End Various.
